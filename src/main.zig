@@ -7,6 +7,7 @@ pub fn main() !void {
 
     var timer = Timer.TaskTimer.init(25);
     var buf: [1]u8 = undefined;
+    var time_buf: [16]u8 = undefined;
 
     try stdout.print("TUI Task Timer (Zig)\n", .{});
     try stdout.print("Controls: [s]tart, [p]ause, [r]eset, [q]uit\n", .{});
@@ -15,9 +16,10 @@ pub fn main() !void {
 
     while (true) {
         // Clear line and print status
+        const formatted_time = timer.formatTime(&time_buf) catch "00:00";
         try stdout.print("\rStatus: {s} | Time: {s}   ", .{ 
             if (timer.state == .Running) "RUNNING" else if (timer.state == .Paused) "PAUSED" else "IDLE",
-            timer.formatTime()
+            formatted_time
         });
 
         if (is_running) {

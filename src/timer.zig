@@ -43,10 +43,9 @@ pub const TaskTimer = struct {
         return false;
     }
 
-    pub fn formatTime(self: TaskTimer) []const u8 {
-        var buf: [16]u8 = undefined;
+    pub fn formatTime(self: TaskTimer, buf: []u8) ![]const u8 {
         const mins = self.remaining_secs / 60;
         const secs = self.remaining_secs % 60;
-        return std.fmt.bufPrint(&buf, "{d:0>2}:{d:0>2}", .{ mins, secs }) catch "00:00";
+        return std.fmt.bufPrint(buf, "{d:0>2}:{d:0>2}", .{ mins, secs });
     }
 };
