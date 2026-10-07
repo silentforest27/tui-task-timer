@@ -12,11 +12,10 @@ pub fn main() !void {
     defer std.heap.page_allocator.free(args);
 
     if (args.len > 1) {
-        if (std.fmt.parseInt(u32, args[1], 10)) catch { 
-            try stdout.print("Invalid duration provided. Using default 25m.\n", .{});
-            duration_mins = 25;
+        if (std.fmt.parseInt(u32, args[1], 10)) |val| {
+            duration_mins = val;
         } else {
-            duration_mins = try std.fmt.parseInt(u32, args[1], 10);
+            try stdout.print("Invalid duration provided. Using default 25m.\n", .{});
         }
     }
 

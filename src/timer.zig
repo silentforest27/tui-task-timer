@@ -20,6 +20,9 @@ pub const TaskTimer = struct {
     }
 
     pub fn start(self: *TaskTimer) void {
+        if (self.remaining_secs == 0) {
+            self.remaining_secs = self.duration_secs;
+        }
         self.state = .Running;
     }
 
@@ -30,6 +33,10 @@ pub const TaskTimer = struct {
     pub fn reset(self: *TaskTimer) void {
         self.remaining_secs = self.duration_secs;
         self.state = .Idle;
+    }
+
+    pub fn isFinished(self: TaskTimer) bool {
+        return self.remaining_secs == 0;
     }
 
     pub fn tick(self: *TaskTimer) bool {
