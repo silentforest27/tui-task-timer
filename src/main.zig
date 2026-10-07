@@ -5,11 +5,27 @@ pub fn main() !void {
     var stdout = std.io.getStdOut().writer();
     var stdin = std.io.getStdIn().reader();
 
-    var timer = Timer.TaskTimer.init(25);
+    var duration_mins: u32 = 25;
+    const args = try std.process.argsAlloc(
+        std.heap.page_allocator,
+    );
+    defer std.heap.page_allocator.free(args);
+
+    if (args.len > 1) {
+        if (std.fmt.parseInt(u32, args[1], 10)) catch { 
+            try stdout.print("Invalid duration provided. Using default 25m.\n", .{});
+            duration_mins = 25;
+        } else {
+            duration_mins = try std.fmt.parseInt(u32, args[1], 10);
+        }
+    }
+
+    var timer = Timer.TaskTimer.init(duration_mins);
     var buf: [1]u8 = undefined;
     var time_buf: [16]u8 = undefined;
 
     try stdout.print("TUI Task Timer (Zig)\n", .{});
+    try stdout.print("Duration: {d} minutes\n", .{duration_mins});
     try stdout.print("Controls: [s]tart, [p]ause, [r]eset, [q]uit\n", .{});
 
     var is_running = false;
@@ -30,7 +46,6 @@ pub fn main() !void {
         }
 
         // Non-blocking input check (simplified for basic demo)
-        // In a real TUI, we would use termios/raw mode
         if (try stdin.read(&buf) != 0) {
             switch (buf[0]) {
                 's' => {
