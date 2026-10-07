@@ -26,20 +26,28 @@ pub fn main() !void {
     try stdout.print("TUI Task Timer (Zig)\n", .{});
     try stdout.print("Duration: {d} minutes\n", .{duration_mins});
     try stdout.print("Controls: [s]tart, [p]ause, [r]eset, [q]uit\n", .{});
+    try stdout.print("-----------------------------------------\n", .{});
 
     var is_running = false;
 
     while (true) {
         // Clear line and print status
         const formatted_time = timer.formatTime(&time_buf) catch "00:00";
-        try stdout.print("\rStatus: {s} | Time: {s}   ", .{ 
-            if (timer.state == .Running) "RUNNING" else if (timer.state == .Paused) "PAUSED" else "IDLE",
+        
+        const status_text = switch (timer.state) {
+            .Running => "RUNNING",
+            .Paused => "PAUSED",
+            .Idle => "IDLE",
+        };
+
+        try stdout.print("\r\x1b[KStatus: {s} | Time: {s}   ", .{ 
+            status_text,
             formatted_time
         });
 
         if (is_running) {
             if (timer.tick()) {
-                try stdout.print("\nTimer Finished!\n", .{});
+                try stdout.print("\n\x1b[32m Timer Finished! Time to take a break! \x1b[0m\n", .{});
                 is_running = false;
             }
         }
@@ -67,5 +75,5 @@ pub fn main() !void {
         std.time.sleep(1 * std.time.ns_per_s);
     }
 
-    try stdout.print("Exiting...\n", .{});
+    try stdout.print("\nExiting...\n", .{});
 }
