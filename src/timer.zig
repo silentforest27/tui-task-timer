@@ -58,7 +58,10 @@ pub const TaskTimer = struct {
 
     pub fn formatProgressBar(self: TaskTimer, buf: []u8) ![]const u8 {
         const width = 20;
-        const filled = (self.remaining_secs * width) / self.duration_secs;
+        if (buf.len < width + 2) return error.BufferTooSmall;
+
+        const elapsed = self.duration_secs - self.remaining_secs;
+        const filled = (elapsed * width) / self.duration_secs;
         
         var out_idx: usize = 0;
         buf[out_idx] = '[';
