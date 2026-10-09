@@ -29,6 +29,9 @@ pub fn main() !void {
     try stdout.print("Controls: [s]tart, [p]ause, [r]eset, [q]uit\n", .{});
     try stdout.print("-----------------------------------------\n", .{});
 
+    // Hide cursor
+    try stdout.print("\x1b[?25l", .{});
+
     var is_running = false;
 
     while (true) {
@@ -81,5 +84,7 @@ pub fn main() !void {
         std.time.sleep(1 * std.time.ns_per_s);
     }
 
+    // Restore cursor
+    try stdout.print("\x1b[?25h", .{});
     try stdout.print("\nExiting...\n", .{});
 }
