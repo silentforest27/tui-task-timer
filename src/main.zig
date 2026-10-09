@@ -51,6 +51,8 @@ pub fn main() !void {
 
         if (is_running) {
             if (timer.tick()) {
+                // Trigger system beep (ASCII Bell)
+                try stdout.print("\a", .{});
                 try stdout.print("\n\x1b[32m Timer Finished! Time to take a break! \x1b[0m\n", .{});
                 is_running = false;
             }
