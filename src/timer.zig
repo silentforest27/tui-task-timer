@@ -55,4 +55,27 @@ pub const TaskTimer = struct {
         const secs = self.remaining_secs % 60;
         return std.fmt.bufPrint(buf, "{d:0>2}:{d:0>2}", .{ mins, secs });
     }
+
+    pub fn formatProgressBar(self: TaskTimer, buf: []u8) ![]const u8 {
+        const width = 20;
+        const filled = (self.remaining_secs * width) / self.duration_secs;
+        
+        var out_idx: usize = 0;
+        buf[out_idx] = '[';
+        out_idx += 1;
+        
+        for (0..width) |i| {
+            if (i < filled) {
+                buf[out_idx] = '=';
+            } else {
+                buf[out_idx] = '-';
+            }
+            out_idx += 1;
+        }
+        
+        buf[out_idx] = ']';
+        out_idx += 1;
+        
+        return buf[0..out_idx];
+    }
 };

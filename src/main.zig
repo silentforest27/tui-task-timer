@@ -22,6 +22,7 @@ pub fn main() !void {
     var timer = Timer.TaskTimer.init(duration_mins);
     var buf: [1]u8 = undefined;
     var time_buf: [16]u8 = undefined;
+    var bar_buf: [31]u8 = undefined;
 
     try stdout.print("TUI Task Timer (Zig)\n", .{});
     try stdout.print("Duration: {d} minutes\n", .{duration_mins});
@@ -40,9 +41,12 @@ pub fn main() !void {
             .Idle => "IDLE",
         };
 
-        try stdout.print("\r\x1b[KStatus: {s} | Time: {s}   ", .{ 
+        const progress_bar = timer.formatProgressBar(&bar_buf) catch "[----------]";
+
+        try stdout.print("\r\x1b[KStatus: {s} | Time: {s} | {s}   ", .{ 
             status_text,
-            formatted_time
+            formatted_time,
+            progress_bar
         });
 
         if (is_running) {
