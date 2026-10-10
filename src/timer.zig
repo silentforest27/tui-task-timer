@@ -58,7 +58,7 @@ pub const TaskTimer = struct {
 
     pub fn formatProgressBar(self: TaskTimer, buf: []u8) ![]const u8 {
         const width = 20;
-        // Need space for ANSI codes and brackets
+        // Need space for ANSI codes: [bracket] + [color] + [width*1] + [reset] + [bracket]
         if (buf.len < width + 20) return error.BufferTooSmall;
 
         const elapsed = self.duration_secs - self.remaining_secs;
@@ -68,29 +68,47 @@ pub const TaskTimer = struct {
         buf[out_idx] = '[';
         out_idx += 1;
         
-        // Add color to filled part
         const color_code = if (self.state == .Running) "\x1b[32m" else "\x1b[37m";
         const reset_code = "\x1b[0m";
 
-        // Simplified for fixed width: we'll just use the color for the whole bar
-        // but for clarity let's stick to a simple approach
+        // Add color start for filled part
+        if (filled > 0) {
+            const code_len = color_code.len;
+            for (0..code_len) |i| {
+                buf[out_idx] = color_code[i];
+                out_idx += 1;
+            }
+        }
+
         for (0..width) |i| {
             if (i < filled) {
                 buf[out_idx] = '=';
             } else {
+                // If we just transitioned from filled to unfilled, reset color
+                if (i == filled) {
+                    const reset_len = reset_code.len;
+                    for (0..reset_len) |j| {
+                        buf[out_idx] = reset_code[j];
+                        out_idx += 1;
+                    }
+                }
                 buf[out_idx] = '-';
             }
             out_idx += 1;
         }
         
+        // Ensure color is reset if the bar is completely full
+        if (filled == width) {
+            const reset_len = reset_code.len;
+            for (0..reset_len) |i| {
+                buf[out_idx] = reset_code[i];
+                out_idx += 1;
+            }
+        }
+
         buf[out_idx] = ']';
         out_idx += 1;
         
-        // We can wrap the whole bar in color based on state
-        // To do this purely in the buffer we'd need to insert codes. 
-        // Let's just use a simple color wrap for the whole bar in main or return here.
-        // For simplicity in this Zig implementation, let's just use the basic bar
-        // and let the state color in main handle the mood.
         return buf[0..out_idx];
     }
 };
