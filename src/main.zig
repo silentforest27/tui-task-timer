@@ -30,7 +30,10 @@ pub fn main() !void {
     var time_buf: [16]u8 = undefined;
     var bar_buf: [64]u8 = undefined;
 
-    try stdout.print("TUI Task Timer (Zig)\n", .{});
+    // Clear screen and move cursor to top-left
+    try stdout.print("\x1b[2J\x1b[H", .{});
+
+    try stdout.print("\x1b[1mTUI Task Timer (Zig)\x1b[0m\n", .{});
     try stdout.print("Task: {s}\n", .{task_label});
     try stdout.print("Duration: {d} minutes\n", .{duration_mins});
     try stdout.print("Controls: [s]tart, [p]ause, [r]eset, [q]uit\n", .{});
@@ -64,12 +67,12 @@ pub fn main() !void {
             if (timer.tick()) {
                 // Trigger system beep (ASCII Bell)
                 try stdout.print("\a", .{});
-                try stdout.print("\n\x1b[32m Timer Finished! Time to take a break! \x1b[0m\n", .{});
+                try stdout.print("\n\x1b[32m\x1b[1m Timer Finished! Time to take a break! \x1b[0m\n", .{});
                 is_running = false;
             }
         }
 
-        // Non-blocking input check (simplified for basic demo)
+        // Non-blocking input check
         if (try stdin.read(&buf) != 0) {
             switch (buf[0]) {
                 's' => {
