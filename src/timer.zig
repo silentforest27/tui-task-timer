@@ -58,7 +58,8 @@ pub const TaskTimer = struct {
 
     pub fn formatProgressBar(self: TaskTimer, buf: []u8) ![]const u8 {
         const width = 20;
-        if (buf.len < width + 2) return error.BufferTooSmall;
+        // Need space for ANSI codes and brackets
+        if (buf.len < width + 20) return error.BufferTooSmall;
 
         const elapsed = self.duration_secs - self.remaining_secs;
         const filled = (elapsed * width) / self.duration_secs;
@@ -67,6 +68,12 @@ pub const TaskTimer = struct {
         buf[out_idx] = '[';
         out_idx += 1;
         
+        // Add color to filled part
+        const color_code = if (self.state == .Running) "\x1b[32m" else "\x1b[37m";
+        const reset_code = "\x1b[0m";
+
+        // Simplified for fixed width: we'll just use the color for the whole bar
+        // but for clarity let's stick to a simple approach
         for (0..width) |i| {
             if (i < filled) {
                 buf[out_idx] = '=';
@@ -79,6 +86,11 @@ pub const TaskTimer = struct {
         buf[out_idx] = ']';
         out_idx += 1;
         
+        // We can wrap the whole bar in color based on state
+        // To do this purely in the buffer we'd need to insert codes. 
+        // Let's just use a simple color wrap for the whole bar in main or return here.
+        // For simplicity in this Zig implementation, let's just use the basic bar
+        // and let the state color in main handle the mood.
         return buf[0..out_idx];
     }
 };

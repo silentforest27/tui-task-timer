@@ -22,7 +22,7 @@ pub fn main() !void {
     var timer = Timer.TaskTimer.init(duration_mins);
     var buf: [1]u8 = undefined;
     var time_buf: [16]u8 = undefined;
-    var bar_buf: [31]u8 = undefined;
+    var bar_buf: [64]u8 = undefined;
 
     try stdout.print("TUI Task Timer (Zig)\n", .{});
     try stdout.print("Duration: {d} minutes\n", .{duration_mins});
@@ -39,9 +39,9 @@ pub fn main() !void {
         const formatted_time = timer.formatTime(&time_buf) catch "00:00";
         
         const status_text = switch (timer.state) {
-            .Running => "RUNNING",
-            .Paused => "PAUSED",
-            .Idle => "IDLE",
+            .Running => "\x1b[32mRUNNING\x1b[0m",
+            .Paused => "\x1b[33mPAUSED\x1b[0m",
+            .Idle => "\x1b[34mIDLE\x1b[0m",
         };
 
         const progress_bar = timer.formatProgressBar(&bar_buf) catch "[----------]";
