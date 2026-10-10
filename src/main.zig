@@ -6,6 +6,8 @@ pub fn main() !void {
     var stdin = std.io.getStdIn().reader();
 
     var duration_mins: u32 = 25;
+    var task_label: []const u8 = "Focus Session";
+
     const args = try std.process.argsAlloc(
         std.heap.page_allocator,
     );
@@ -19,12 +21,17 @@ pub fn main() !void {
         }
     }
 
+    if (args.len > 2) {
+        task_label = args[2];
+    }
+
     var timer = Timer.TaskTimer.init(duration_mins);
     var buf: [1]u8 = undefined;
     var time_buf: [16]u8 = undefined;
     var bar_buf: [64]u8 = undefined;
 
     try stdout.print("TUI Task Timer (Zig)\n", .{});
+    try stdout.print("Task: {s}\n", .{task_label});
     try stdout.print("Duration: {d} minutes\n", .{duration_mins});
     try stdout.print("Controls: [s]tart, [p]ause, [r]eset, [q]uit\n", .{});
     try stdout.print("-----------------------------------------\n", .{});
@@ -46,7 +53,8 @@ pub fn main() !void {
 
         const progress_bar = timer.formatProgressBar(&bar_buf) catch "[----------]";
 
-        try stdout.print("\r\x1b[KStatus: {s} | Time: {s} | {s}   ", .{ 
+        try stdout.print("\r\x1b[K[{s}] Status: {s} | Time: {s} | {s}   ", .{ 
+            task_label,
             status_text,
             formatted_time,
             progress_bar
