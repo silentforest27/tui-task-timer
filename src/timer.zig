@@ -59,7 +59,7 @@ pub const TaskTimer = struct {
     pub fn formatProgressBar(self: TaskTimer, buf: []u8) ![]const u8 {
         const width = 20;
         // Buffer needs to hold: '[', ANSI color (5), bar (20), ANSI reset (4), ']', ' 100%' (4)
-        if (buf.len < 40) return error.BufferTooSmall;
+        if (buf.len < 64) return error.BufferTooSmall;
 
         const elapsed = self.duration_secs - self.remaining_secs;
         const filled = (elapsed * width) / self.duration_secs;
@@ -76,6 +76,7 @@ pub const TaskTimer = struct {
         };
         const reset_code = "\x1b[0m";
 
+        // Apply color for the filled part
         if (filled > 0) {
             @memcpy(buf[out_idx..][0..color_code.len], color_code);
             out_idx += color_code.len;
@@ -85,6 +86,7 @@ pub const TaskTimer = struct {
             if (i < filled) {
                 buf[out_idx] = '=';
             } else {
+                // If we just transitioned from filled to empty, reset color
                 if (i == filled && filled > 0) {
                     @memcpy(buf[out_idx..][0..reset_code.len], reset_code);
                     out_idx += reset_code.len;
@@ -94,6 +96,7 @@ pub const TaskTimer = struct {
             out_idx += 1;
         }
         
+        // Ensure color is reset if the bar is fully filled
         if (filled == width) {
             @memcpy(buf[out_idx..][0..reset_code.len], reset_code);
             out_idx += reset_code.len;
