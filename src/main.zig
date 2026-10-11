@@ -102,7 +102,16 @@ pub fn main() !void {
             }
         }
 
-        // Non-blocking input check (using raw mode, this reads one char at a time)
+        // Non-blocking input check
+        // Since we are in raw mode, we can try to read. 
+        // To avoid blocking the loop, we use a small trick: 
+        // check if there is data available or use a timeout/non-blocking flag if available.
+        // For simplicity in this Zig version, we check if we can read one byte without blocking.
+        // Note: True non-blocking IO usually requires fcntl O_NONBLOCK on the fd.
+        
+        // Set STDIN to non-blocking for the read call
+        std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, std.os.linux.O_NONBLOCK);
+        
         if (stdin.read(&buf) catch 0 != 0) {
             switch (buf[0]) {
                 's' => {
