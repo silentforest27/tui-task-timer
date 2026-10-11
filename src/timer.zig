@@ -58,11 +58,12 @@ pub const TaskTimer = struct {
 
     pub fn formatProgressBar(self: TaskTimer, buf: []u8) ![]const u8 {
         const width = 20;
-        // Need space for ANSI codes: [bracket] + [color] + [width*1] + [reset] + [bracket]
-        if (buf.len < width + 20) return error.BufferTooSmall;
+        // Need space for ANSI codes + bar + percentage (e.g., " 100%")
+        if (buf.len < width + 30) return error.BufferTooSmall;
 
         const elapsed = self.duration_secs - self.remaining_secs;
         const filled = (elapsed * width) / self.duration_secs;
+        const percent = (elapsed * 100) / self.duration_secs;
         
         var out_idx: usize = 0;
         buf[out_idx] = '[';
@@ -108,6 +109,10 @@ pub const TaskTimer = struct {
 
         buf[out_idx] = ']';
         out_idx += 1;
+
+        // Add percentage
+        const pct_str = try std.fmt.bufPrint(buf[out_idx..], " {d}%", .{percent});
+        out_idx += pct_str.len;
         
         return buf[0..out_idx];
     }
