@@ -1,6 +1,32 @@
 const std = @import("std");
 const Timer = @import("timer");
 
+// Termios imports for raw mode on Unix
+const termios = std.os.linux.termios;
+const tcgetattr = std.os.linux.tcgetattr;
+const tcsetattr = std.os.linux.tcsetattr;
+const STDIN_FILENO = std.os.linux.STDIN_FILENO;
+
+fn enableRawMode() !void {
+    var term : termios = undefined;
+    _ = tcgetattr(STDIN_FILENO, &term);
+
+    // Disable echoing and canonical mode (buffered input)
+    term.c_lflag &= ~(@as(u32, 0x0000000B)); // ECHO | ICANON
+    
+    _ = tcsetattr(STDIN_FILENO, 0, &term);
+}
+
+fn disableRawMode() !void {
+    var term : termios = undefined;
+    _ = tcgetattr(STDIN_FILENO, &term);
+
+    // Restore echoing and canonical mode
+    term.c_lflag |= @as(u32, 0x0000000B);
+
+    _ = tcsetattr(STDIN_FILENO, 0, &term);
+}
+
 pub fn main() !void {
     var stdout = std.io.getStdOut().writer();
     var stdin = std.io.getStdIn().reader();
@@ -29,6 +55,10 @@ pub fn main() !void {
     var buf: [1]u8 = undefined;
     var time_buf: [16]u8 = undefined;
     var bar_buf: [64]u8 = undefined;
+
+    // Set terminal to raw mode
+    enableRawMode() catch {};
+    defer disableRawMode() catch {};
 
     // Clear screen and move cursor to top-left
     try stdout.print("\x1b[2J\x1b[H", .{});
@@ -72,8 +102,8 @@ pub fn main() !void {
             }
         }
 
-        // Non-blocking input check
-        if (try stdin.read(&buf) != 0) {
+        // Non-blocking input check (using raw mode, this reads one char at a time)
+        if (stdin.read(&buf) catch 0 != 0) {
             switch (buf[0]) {
                 's' => {
                     timer.start();
