@@ -58,8 +58,8 @@ pub const TaskTimer = struct {
 
     pub fn formatProgressBar(self: TaskTimer, buf: []u8) ![]const u8 {
         const width = 20;
-        // Need space for ANSI codes + bar + percentage (e.g., " 100%")
-        if (buf.len < width + 30) return error.BufferTooSmall;
+        // Buffer needs to hold: '[', ANSI color (5), bar (20), ANSI reset (4), ']', ' 100%' (4)
+        if (buf.len < 40) return error.BufferTooSmall;
 
         const elapsed = self.duration_secs - self.remaining_secs;
         const filled = (elapsed * width) / self.duration_secs;
@@ -69,48 +69,39 @@ pub const TaskTimer = struct {
         buf[out_idx] = '[';
         out_idx += 1;
         
-        const color_code = if (self.state == .Running) "\x1b[32m" else "\x1b[37m";
+        const color_code = switch (self.state) {
+            .Running => "\x1b[32m",
+            .Paused => "\x1b[33m",
+            .Idle => "\x1b[37m",
+        };
         const reset_code = "\x1b[0m";
 
-        // Add color start for filled part
         if (filled > 0) {
-            const code_len = color_code.len;
-            for (0..code_len) |i| {
-                buf[out_idx] = color_code[i];
-                out_idx += 1;
-            }
+            @memcpy(buf[out_idx..][0..color_code.len], color_code);
+            out_idx += color_code.len;
         }
 
         for (0..width) |i| {
             if (i < filled) {
                 buf[out_idx] = '=';
             } else {
-                // If we just transitioned from filled to unfilled, reset color
-                if (i == filled) {
-                    const reset_len = reset_code.len;
-                    for (0..reset_len) |j| {
-                        buf[out_idx] = reset_code[j];
-                        out_idx += 1;
-                    }
+                if (i == filled && filled > 0) {
+                    @memcpy(buf[out_idx..][0..reset_code.len], reset_code);
+                    out_idx += reset_code.len;
                 }
                 buf[out_idx] = '-';
             }
             out_idx += 1;
         }
         
-        // Ensure color is reset if the bar is completely full
         if (filled == width) {
-            const reset_len = reset_code.len;
-            for (0..reset_len) |i| {
-                buf[out_idx] = reset_code[i];
-                out_idx += 1;
-            }
+            @memcpy(buf[out_idx..][0..reset_code.len], reset_code);
+            out_idx += reset_code.len;
         }
 
         buf[out_idx] = ']';
         out_idx += 1;
 
-        // Add percentage
         const pct_str = try std.fmt.bufPrint(buf[out_idx..], " {d}%", .{percent});
         out_idx += pct_str.len;
         
