@@ -7,12 +7,15 @@ const tcgetattr = std.os.linux.tcgetattr;
 const tcsetattr = std.os.linux.tcsetattr;
 const STDIN_FILENO = std.os.linux.STDIN_FILENO;
 
+const ECHO = @as(u32, 0x00000004);
+const ICANON = @as(u32, 0x00000002);
+
 fn enableRawMode() !void {
     var term : termios = undefined;
     _ = tcgetattr(STDIN_FILENO, &term);
 
     // Disable echoing and canonical mode (buffered input)
-    term.c_lflag &= ~(@as(u32, 0x0000000B)); // ECHO | ICANON
+    term.c_lflag &= ~(ECHO | ICANON);
     
     _ = tcsetattr(STDIN_FILENO, 0, &term);
 }
@@ -22,7 +25,7 @@ fn disableRawMode() !void {
     _ = tcgetattr(STDIN_FILENO, &term);
 
     // Restore echoing and canonical mode
-    term.c_lflag |= @as(u32, 0x0000000B);
+    term.c_lflag |= (ECHO | ICANON);
 
     _ = tcsetattr(STDIN_FILENO, 0, &term);
 }
@@ -73,6 +76,7 @@ pub fn main() !void {
     try stdout.print("\x1b[?25l", .{});
 
     var is_running = false;
+    var last_tick_time = std.time.Timer.start();
 
     while (true) {
         // Clear line and print status
@@ -94,21 +98,18 @@ pub fn main() !void {
         });
 
         if (is_running) {
-            if (timer.tick()) {
-                // Trigger system beep (ASCII Bell)
-                try stdout.print("\a", .{});
-                try stdout.print("\n\x1b[32m\x1b[1m Timer Finished! Time to take a break! \x1b[0m\n", .{});
-                is_running = false;
+            // Tick every 1 second
+            if (last_tick_time.read() >= 1 * std.time.ns_per_s) {
+                last_tick_time.reset();
+                if (timer.tick()) {
+                    // Trigger system beep (ASCII Bell)
+                    try stdout.print("\a", .{});
+                    try stdout.print("\n\x1b[32m\x1b[1m Timer Finished! Time to take a break! \x1b[0m\n", .{});
+                    is_running = false;
+                }
             }
         }
 
-        // Non-blocking input check
-        // Since we are in raw mode, we can try to read. 
-        // To avoid blocking the loop, we use a small trick: 
-        // check if there is data available or use a timeout/non-blocking flag if available.
-        // For simplicity in this Zig version, we check if we can read one byte without blocking.
-        // Note: True non-blocking IO usually requires fcntl O_NONBLOCK on the fd.
-        
         // Set STDIN to non-blocking for the read call
         std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, std.os.linux.O_NONBLOCK);
         
@@ -117,6 +118,7 @@ pub fn main() !void {
                 's' => {
                     timer.start();
                     is_running = true;
+                    last_tick_time.reset();
                 },
                 'p' => {
                     timer.pause();
@@ -131,7 +133,8 @@ pub fn main() !void {
             }
         }
 
-        std.time.sleep(1 * std.time.ns_per_s);
+        // Sleep for a short duration to avoid 100% CPU usage but remain responsive
+        std.time.sleep(100 * std.time.ns_per_ms);
     }
 
     // Restore cursor
