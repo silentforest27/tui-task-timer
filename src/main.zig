@@ -18,6 +18,9 @@ fn enableRawMode() !void {
     term.c_lflag &= ~(ECHO | ICANON);
     
     _ = tcsetattr(STDIN_FILENO, 0, &term);
+
+    // Set STDIN to non-blocking for the read call
+    std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, std.os.linux.O_NONBLOCK);
 }
 
 fn disableRawMode() !void {
@@ -28,6 +31,9 @@ fn disableRawMode() !void {
     term.c_lflag |= (ECHO | ICANON);
 
     _ = tcsetattr(STDIN_FILENO, 0, &term);
+
+    // Restore blocking I/O
+    std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, 0);
 }
 
 pub fn main() !void {
@@ -59,7 +65,7 @@ pub fn main() !void {
     var time_buf: [16]u8 = undefined;
     var bar_buf: [64]u8 = undefined;
 
-    // Set terminal to raw mode
+    // Set terminal to raw mode and non-blocking input
     enableRawMode() catch {};
     defer disableRawMode() catch {};
 
@@ -110,9 +116,6 @@ pub fn main() !void {
             }
         }
 
-        // Set STDIN to non-blocking for the read call
-        std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, std.os.linux.O_NONBLOCK);
-        
         if (stdin.read(&buf) catch 0 != 0) {
             switch (buf[0]) {
                 's' => {
