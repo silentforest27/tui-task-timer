@@ -126,6 +126,8 @@ pub fn main() !void {
                 'p' => {
                     timer.pause();
                     is_running = false;
+                    // Visual flash to indicate pause action
+                    try stdout.print("\x1b[5m\x1b[0m", .{});
                 },
                 'r' => {
                     timer.reset();
