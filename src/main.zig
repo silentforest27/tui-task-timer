@@ -121,10 +121,19 @@ pub fn main() !void {
             if (last_tick_time.read() >= 1 * std.time.ns_per_s) {
                 last_tick_time.reset();
                 if (timer.tick()) {
-                    sessions_completed += 1;
-                    try stdout.print("\a", .{});
-                    try stdout.print("\n\x1b[32m\x1b[1m ★ Timer Finished! Session {d} complete. ★ \x1b[0m\n", .{sessions_completed});
-                    is_running = false;
+                    if (timer.state == .Idle) {
+                        // If we just finished a focus session, auto-start break
+                        timer.startBreak(break_mins);
+                        try stdout.print("\a", .{});
+                        try stdout.print("\n\x1b[32m\x1b[1m ★ Focus Session Complete! Starting Break... ★ \x1b[0m\n", .{});
+                        sessions_completed += 1;
+                        is_running = true; // Keep running for the break
+                    } else if (timer.state == .Break) {
+                        // If we just finished a break, go to Idle
+                        try stdout.print("\a", .{});
+                        try stdout.print("\n\x1b[35m\x1b[1m ★ Break Finished! Ready to focus. ★ \x1b[0m\n", .{});
+                        is_running = false;
+                    }
                 }
             }
         }

@@ -35,7 +35,7 @@ pub const TaskTimer = struct {
     }
 
     pub fn pause(self: *TaskTimer) void {
-        if (self.state == .Running) {
+        if (self.state == .Running or self.state == .Break) {
             self.state = .Paused;
         }
     }
@@ -50,12 +50,6 @@ pub const TaskTimer = struct {
         self.duration_secs = break_mins * 60;
         self.remaining_secs = break_mins * 60;
         self.state = .Break;
-        // We keep the state as Break but mark it as Running effectively 
-        // since the main loop checks for .Running to tick.
-        // To maintain compatibility with existing main.zig logic,
-        // we can keep .Break and modify main.zig or just use .Running.
-        // However, to support the status text, we'll use .Break and 
-        // update the tick logic.
     }
 
     pub fn isFinished(self: TaskTimer) bool {
@@ -66,7 +60,14 @@ pub const TaskTimer = struct {
         if ((self.state == .Running or self.state == .Break) and self.remaining_secs > 0) {
             self.remaining_secs -= 1;
             if (self.remaining_secs == 0) {
-                self.state = .Idle;
+                // If it was a break, it transitions to Idle
+                // If it was Running (focus), it also transitions to Idle
+                // but the main loop handles the specific transition to Break
+                if (self.state == .Break) {
+                    self.state = .Idle;
+                } else {
+                    self.state = .Idle;
+                }
                 return true; // Timer finished
             }
         }
