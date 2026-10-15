@@ -86,6 +86,7 @@ pub fn main() !void {
 
     var is_running = false;
     var last_tick_time = std.time.Timer.start();
+    var sessions_completed: u32 = 0;
 
     while (true) {
         // Clear line and print status
@@ -100,11 +101,12 @@ pub fn main() !void {
 
         const progress_bar = timer.formatProgressBar(&bar_buf) catch "[----------]";
 
-        try stdout.print("\r\x1b[K\x1b[1mSession:\x1b[0m {s} | Status: {s} | Time: {s} | {s}   ", .{ 
+        try stdout.print("\r\x1b[K\x1b[1mSession:\x1b[0m {s} | Status: {s} | Time: {s} | {s} | Completed: {d}   ", .{ 
             task_label,
             status_text,
             formatted_time,
-            progress_bar
+            progress_bar,
+            sessions_completed
         });
 
         if (is_running) {
@@ -112,9 +114,11 @@ pub fn main() !void {
             if (last_tick_time.read() >= 1 * std.time.ns_per_s) {
                 last_tick_time.reset();
                 if (timer.tick()) {
+                    sessions_completed += 1;
                     // Trigger system beep (ASCII Bell)
                     try stdout.print("\a", .{});
-                    try stdout.print("\n\x1b[32m\x1b[1m Timer Finished! Time to take a break! \x1b[0m\n", .{});
+                    // Move to a new line to ensure the completion message stays visible
+                    try stdout.print("\n\x1b[32m\x1b[1m ★ Timer Finished! Session {d} complete. Time to take a break! ★ \x1b[0m\n", .{sessions_completed});
                     is_running = false;
                 }
             }
