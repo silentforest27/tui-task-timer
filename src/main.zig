@@ -72,11 +72,14 @@ pub fn main() !void {
     // Clear screen and move cursor to top-left
     try stdout.print("\x1b[2J\x1b[H", .{});
 
-    try stdout.print("\x1b[1m\x1b[36mTUI Task Timer (Zig)\x1b[0m\n", .{});
-    try stdout.print("Task: {s}\n", .{task_label});
-    try stdout.print("Duration: {d} minutes\n", .{duration_mins});
-    try stdout.print("Controls: [s]tart, [p]ause, [r]eset, [b]reak, [q]uit\n", .{});
-    try stdout.print("\x1b[2m-----------------------------------------\x1b[0m\n", .{});
+    try stdout.print("\x1b[1m\x1b[36m╔══════════════════════════════════════════════════════╗\x1b[0m\n", .{});
+    try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  \x1b[1mTUI Task Timer (Zig)\x1b[0m                                  \x1b[1m\x1b[36m║\x1b[0m\n", .{});
+    try stdout.print("\x1b[1m\x1b[36m╠══════════════════════════════════════════════════════╣\x1b[0m\n", .{});
+    try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Task: \x1b[33m{s}\x1b[0m                                      \x1b[1m\x1b[36m║\x1b[0m\n", .{task_label});
+    try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Duration: {d} minutes                                 \x1b[1m\x1b[36m║\x1b[0m\n", .{duration_mins});
+    try stdout.print("\x1b[1m\x1b[36m╚══════════════════════════════════════════════════════╝\x1b[0m\n", .{});
+    try stdout.print("\nControls: [s]tart, [p]ause, [r]eset, [b]reak, [q]uit\n", .{});
+    try stdout.print("\x1b[2m-----------------------------------------------------\x1b[0m\n", .{});
 
     // Hide cursor
     try stdout.print("\x1b[?25l", .{});

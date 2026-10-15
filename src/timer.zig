@@ -69,6 +69,8 @@ pub const TaskTimer = struct {
         const width = 20;
         if (buf.len < 64) return error.BufferTooSmall;
 
+        if (self.duration_secs == 0) return error.InvalidDuration;
+
         const elapsed = self.duration_secs - self.remaining_secs;
         const filled = (elapsed * width) / self.duration_secs;
         const percent = (elapsed * 100) / self.duration_secs;
