@@ -41,6 +41,7 @@ pub fn main() !void {
     var stdin = std.io.getStdIn().reader();
 
     var duration_mins: u32 = 25;
+    var break_mins: u32 = 5;
     var task_label: []const u8 = "Focus Session";
 
     const args = try std.process.argsAlloc(
@@ -60,6 +61,14 @@ pub fn main() !void {
         task_label = args[2];
     }
 
+    if (args.len > 3) {
+        if (std.fmt.parseInt(u32, args[3], 10)) |val| {
+            break_mins = val;
+        } else {
+            try stdout.print("Invalid break duration provided. Using default 5m.\n", .{});
+        }
+    }
+
     var timer = Timer.TaskTimer.init(duration_mins);
     var buf: [32]u8 = undefined;
     var time_buf: [16]u8 = undefined;
@@ -76,7 +85,7 @@ pub fn main() !void {
     try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  \x1b[1mTUI Task Timer (Zig)\x1b[0m                                  \x1b[1m\x1b[36m║\x1b[0m\n", .{});
     try stdout.print("\x1b[1m\x1b[36m╠══════════════════════════════════════════════════════╣\x1b[0m\n", .{});
     try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Task: \x1b[33m{s}\x1b[0m                                      \x1b[1m\x1b[36m║\x1b[0m\n", .{task_label});
-    try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Duration: {d} minutes                                 \x1b[1m\x1b[36m║\x1b[0m\n", .{duration_mins});
+    try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Duration: {d} mins | Break: {d} mins                \x1b[1m\x1b[36m║\x1b[0m\n", .{duration_mins, break_mins});
     try stdout.print("\x1b[1m\x1b[36m╚══════════════════════════════════════════════════════╝\x1b[0m\n", .{});
     try stdout.print("\nControls: [s]tart, [p]ause, [r]eset, [b]reak, [q]uit\n", .{});
     try stdout.print("\x1b[2m-----------------------------------------------------\x1b[0m\n", .{});
@@ -89,7 +98,6 @@ pub fn main() !void {
     var sessions_completed: u32 = 0;
 
     while (true) {
-        // Clear line and print status
         const formatted_time = timer.formatTime(&time_buf) catch "00:00";
         
         const status_text = switch (timer.state) {
@@ -110,23 +118,18 @@ pub fn main() !void {
         });
 
         if (is_running) {
-            // Tick every 1 second
             if (last_tick_time.read() >= 1 * std.time.ns_per_s) {
                 last_tick_time.reset();
                 if (timer.tick()) {
                     sessions_completed += 1;
-                    // Trigger system beep (ASCII Bell)
                     try stdout.print("\a", .{});
-                    // Move to a new line to ensure the completion message stays visible
                     try stdout.print("\n\x1b[32m\x1b[1m ★ Timer Finished! Session {d} complete. Time to take a break! ★ \x1b[0m\n", .{sessions_completed});
                     is_running = false;
                 }
             }
         }
 
-        // Read all available input to prevent lag
         while (stdin.read(&buf) catch 0 != 0) {
-            // Only process the first byte for simplicity in this TUI
             switch (buf[0]) {
                 's' => {
                     if (timer.state != .Running) {
@@ -147,7 +150,7 @@ pub fn main() !void {
                     is_running = false;
                 },
                 'b' => {
-                    timer.startBreak();
+                    timer.startBreak(break_mins);
                     is_running = true;
                     last_tick_time.reset();
                 },
@@ -159,11 +162,9 @@ pub fn main() !void {
             }
         }
 
-        // Sleep for a short duration to avoid 100% CPU usage but remain responsive
         std.time.sleep(10 * std.time.ns_per_ms);
     }
 
-    // Restore cursor
     try stdout.print("\x1b[?25h", .{});
     try stdout.print("\nExiting...\n", .{});
 }

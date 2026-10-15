@@ -38,9 +38,9 @@ pub const TaskTimer = struct {
         self.state = .Idle;
     }
 
-    pub fn startBreak(self: *TaskTimer) void {
-        self.remaining_secs = 5 * 60; // Default 5 min break
-        self.duration_secs = 5 * 60;
+    pub fn startBreak(self: *TaskTimer, break_mins: u32) void {
+        self.remaining_secs = break_mins * 60;
+        self.duration_secs = break_mins * 60;
         self.state = .Running;
     }
 
