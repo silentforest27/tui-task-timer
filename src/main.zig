@@ -61,7 +61,7 @@ pub fn main() !void {
     }
 
     var timer = Timer.TaskTimer.init(duration_mins);
-    var buf: [1]u8 = undefined;
+    var buf: [32]u8 = undefined;
     var time_buf: [16]u8 = undefined;
     var bar_buf: [64]u8 = undefined;
 
@@ -96,7 +96,7 @@ pub fn main() !void {
 
         const progress_bar = timer.formatProgressBar(&bar_buf) catch "[----------]";
 
-        try stdout.print("\r\x1b[K[{s}] Status: {s} | Time: {s} | {s}   ", .{ 
+        try stdout.print("\r\x1b[K\x1b[1mSession:\x1b[0m {s} | Status: {s} | Time: {s} | {s}   ", .{ 
             task_label,
             status_text,
             formatted_time,
@@ -116,7 +116,9 @@ pub fn main() !void {
             }
         }
 
-        if (stdin.read(&buf) catch 0 != 0) {
+        // Read all available input to prevent lag
+        while (stdin.read(&buf) catch 0 != 0) {
+            // Only process the first byte for simplicity in this TUI
             switch (buf[0]) {
                 's' => {
                     if (timer.state != .Running) {
@@ -129,7 +131,6 @@ pub fn main() !void {
                     if (timer.state == .Running) {
                         timer.pause();
                         is_running = false;
-                        // Visual flash to indicate pause action
                         try stdout.print("\x1b[5m\x1b[0m", .{});
                     }
                 },
@@ -137,13 +138,20 @@ pub fn main() !void {
                     timer.reset();
                     is_running = false;
                 },
-                'q' => break,
+                'q' => {
+                    // Use a flag or jump to break outer loop
+                    // Since we are in a while(true) inside a while, we use a break-like mechanism
+                    // But here we can just exit the program or set a flag.
+                    // For simplicity, we'll break the current inner loop and then handle exit.
+                    try stdout.print("\x1b[?25h\nExiting...\n", .{});
+                    std.process.exit(0);
+                },
                 else => {},
             }
         }
 
         // Sleep for a short duration to avoid 100% CPU usage but remain responsive
-        std.time.sleep(100 * std.time.ns_per_ms);
+        std.time.sleep(10 * std.time.ns_per_ms);
     }
 
     // Restore cursor
