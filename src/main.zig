@@ -72,11 +72,11 @@ pub fn main() !void {
     // Clear screen and move cursor to top-left
     try stdout.print("\x1b[2J\x1b[H", .{});
 
-    try stdout.print("\x1b[1mTUI Task Timer (Zig)\x1b[0m\n", .{});
+    try stdout.print("\x1b[1m\x1b[36mTUI Task Timer (Zig)\x1b[0m\n", .{});
     try stdout.print("Task: {s}\n", .{task_label});
     try stdout.print("Duration: {d} minutes\n", .{duration_mins});
     try stdout.print("Controls: [s]tart, [p]ause, [r]eset, [q]uit\n", .{});
-    try stdout.print("-----------------------------------------\n", .{});
+    try stdout.print("\x1b[2m-----------------------------------------\x1b[0m\n", .{});
 
     // Hide cursor
     try stdout.print("\x1b[?25l", .{});
@@ -139,11 +139,7 @@ pub fn main() !void {
                     is_running = false;
                 },
                 'q' => {
-                    // Use a flag or jump to break outer loop
-                    // Since we are in a while(true) inside a while, we use a break-like mechanism
-                    // But here we can just exit the program or set a flag.
-                    // For simplicity, we'll break the current inner loop and then handle exit.
-                    try stdout.print("\x1b[?25h\nExiting...\n", .{});
+                    try stdout.print("\x1b[?25h\n\x1b[0mExiting...\n", .{});
                     std.process.exit(0);
                 },
                 else => {},
