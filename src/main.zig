@@ -75,7 +75,7 @@ pub fn main() !void {
     try stdout.print("\x1b[1m\x1b[36mTUI Task Timer (Zig)\x1b[0m\n", .{});
     try stdout.print("Task: {s}\n", .{task_label});
     try stdout.print("Duration: {d} minutes\n", .{duration_mins});
-    try stdout.print("Controls: [s]tart, [p]ause, [r]eset, [q]uit\n", .{});
+    try stdout.print("Controls: [s]tart, [p]ause, [r]eset, [b]reak, [q]uit\n", .{});
     try stdout.print("\x1b[2m-----------------------------------------\x1b[0m\n", .{});
 
     // Hide cursor
@@ -91,6 +91,7 @@ pub fn main() !void {
         const status_text = switch (timer.state) {
             .Running => "\x1b[32mRUNNING\x1b[0m",
             .Paused => "\x1b[33mPAUSED\x1b[0m",
+            .Break => "\x1b[35mBREAK\x1b[0m",
             .Idle => "\x1b[34mIDLE\x1b[0m",
         };
 
@@ -137,6 +138,11 @@ pub fn main() !void {
                 'r' => {
                     timer.reset();
                     is_running = false;
+                },
+                'b' => {
+                    timer.startBreak();
+                    is_running = true;
+                    last_tick_time.reset();
                 },
                 'q' => {
                     try stdout.print("\x1b[?25h\n\x1b[0mExiting...\n", .{});

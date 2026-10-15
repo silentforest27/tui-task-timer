@@ -4,6 +4,7 @@ pub const TimerState = enum {
     Idle,
     Running,
     Paused,
+    Break,
 };
 
 pub const TaskTimer = struct {
@@ -27,12 +28,20 @@ pub const TaskTimer = struct {
     }
 
     pub fn pause(self: *TaskTimer) void {
-        self.state = .Paused;
+        if (self.state == .Running) {
+            self.state = .Paused;
+        }
     }
 
     pub fn reset(self: *TaskTimer) void {
         self.remaining_secs = self.duration_secs;
         self.state = .Idle;
+    }
+
+    pub fn startBreak(self: *TaskTimer) void {
+        self.remaining_secs = 5 * 60; // Default 5 min break
+        self.duration_secs = 5 * 60;
+        self.state = .Running;
     }
 
     pub fn isFinished(self: TaskTimer) bool {
@@ -58,7 +67,6 @@ pub const TaskTimer = struct {
 
     pub fn formatProgressBar(self: TaskTimer, buf: []u8) ![]const u8 {
         const width = 20;
-        // Buffer needs to hold: '[', ANSI color (5), bar (20), ANSI reset (4), ']', ' 100%' (4)
         if (buf.len < 64) return error.BufferTooSmall;
 
         const elapsed = self.duration_secs - self.remaining_secs;
@@ -72,11 +80,11 @@ pub const TaskTimer = struct {
         const color_code = switch (self.state) {
             .Running => "\x1b[32m",
             .Paused => "\x1b[33m",
+            .Break => "\x1b[35m",
             .Idle => "\x1b[37m",
         };
         const reset_code = "\x1b[0m";
 
-        // Apply color for the filled part
         if (filled > 0) {
             @memcpy(buf[out_idx..][0..color_code.len], color_code);
             out_idx += color_code.len;
@@ -85,18 +93,17 @@ pub const TaskTimer = struct {
         for (0..width) |i| {
             if (i < filled) {
                 buf[out_idx] = '=';
+                out_idx += 1;
             } else {
-                // If we just transitioned from filled to empty, reset color
                 if (i == filled && filled > 0) {
                     @memcpy(buf[out_idx..][0..reset_code.len], reset_code);
                     out_idx += reset_code.len;
                 }
                 buf[out_idx] = '-';
+                out_idx += 1;
             }
-            out_idx += 1;
         }
         
-        // Ensure color is reset if the bar is fully filled
         if (filled == width) {
             @memcpy(buf[out_idx..][0..reset_code.len], reset_code);
             out_idx += reset_code.len;
