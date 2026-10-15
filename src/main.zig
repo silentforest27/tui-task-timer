@@ -119,15 +119,19 @@ pub fn main() !void {
         if (stdin.read(&buf) catch 0 != 0) {
             switch (buf[0]) {
                 's' => {
-                    timer.start();
-                    is_running = true;
-                    last_tick_time.reset();
+                    if (timer.state != .Running) {
+                        timer.start();
+                        is_running = true;
+                        last_tick_time.reset();
+                    }
                 },
                 'p' => {
-                    timer.pause();
-                    is_running = false;
-                    // Visual flash to indicate pause action
-                    try stdout.print("\x1b[5m\x1b[0m", .{});
+                    if (timer.state == .Running) {
+                        timer.pause();
+                        is_running = false;
+                        // Visual flash to indicate pause action
+                        try stdout.print("\x1b[5m\x1b[0m", .{});
+                    }
                 },
                 'r' => {
                     timer.reset();
