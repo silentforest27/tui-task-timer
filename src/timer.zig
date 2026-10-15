@@ -8,20 +8,27 @@ pub const TimerState = enum {
 };
 
 pub const TaskTimer = struct {
+    focus_duration_secs: u32,
     duration_secs: u32,
     remaining_secs: u32,
     state: TimerState,
 
     pub fn init(duration_mins: u32) TaskTimer {
+        const secs = duration_mins * 60;
         return TaskTimer{
-            .duration_secs = duration_mins * 60,
-            .remaining_secs = duration_mins * 60,
+            .focus_duration_secs = secs,
+            .duration_secs = secs,
+            .remaining_secs = secs,
             .state = .Idle,
         };
     }
 
     pub fn start(self: *TaskTimer) void {
-        if (self.remaining_secs == 0) {
+        if (self.state == .Break) {
+            // Transition back from break to focus session
+            self.duration_secs = self.focus_duration_secs;
+            self.remaining_secs = self.focus_duration_secs;
+        } else if (self.remaining_secs == 0) {
             self.remaining_secs = self.duration_secs;
         }
         self.state = .Running;
@@ -34,14 +41,21 @@ pub const TaskTimer = struct {
     }
 
     pub fn reset(self: *TaskTimer) void {
-        self.remaining_secs = self.duration_secs;
+        self.duration_secs = self.focus_duration_secs;
+        self.remaining_secs = self.focus_duration_secs;
         self.state = .Idle;
     }
 
     pub fn startBreak(self: *TaskTimer, break_mins: u32) void {
-        self.remaining_secs = break_mins * 60;
         self.duration_secs = break_mins * 60;
-        self.state = .Running;
+        self.remaining_secs = break_mins * 60;
+        self.state = .Break;
+        // We keep the state as Break but mark it as Running effectively 
+        // since the main loop checks for .Running to tick.
+        // To maintain compatibility with existing main.zig logic,
+        // we can keep .Break and modify main.zig or just use .Running.
+        // However, to support the status text, we'll use .Break and 
+        // update the tick logic.
     }
 
     pub fn isFinished(self: TaskTimer) bool {
@@ -49,7 +63,7 @@ pub const TaskTimer = struct {
     }
 
     pub fn tick(self: *TaskTimer) bool {
-        if (self.state == .Running and self.remaining_secs > 0) {
+        if ((self.state == .Running or self.state == .Break) and self.remaining_secs > 0) {
             self.remaining_secs -= 1;
             if (self.remaining_secs == 0) {
                 self.state = .Idle;

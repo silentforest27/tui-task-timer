@@ -139,7 +139,7 @@ pub fn main() !void {
                     }
                 },
                 'p' => {
-                    if (timer.state == .Running) {
+                    if (timer.state == .Running or timer.state == .Break) {
                         timer.pause();
                         is_running = false;
                         try stdout.print("\x1b[5m\x1b[0m", .{});
