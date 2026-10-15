@@ -109,7 +109,7 @@ pub fn main() !void {
 
         const progress_bar = timer.formatProgressBar(&bar_buf) catch "[----------]";
 
-        try stdout.print("\r\x1b[K\x1b[1mSession:\x1b[0m {s} | Status: {s} | Time: {s} | {s} | Completed: {d}   ", .{ 
+        try stdout.print("\r\x1b[K\x1b[1mSession:\x1b[0m {s} | Status: {s} | Time: {s} | {s} | Done: {d}   ", .{ 
             task_label,
             status_text,
             formatted_time,
@@ -123,7 +123,7 @@ pub fn main() !void {
                 if (timer.tick()) {
                     sessions_completed += 1;
                     try stdout.print("\a", .{});
-                    try stdout.print("\n\x1b[32m\x1b[1m ★ Timer Finished! Session {d} complete. Time to take a break! ★ \x1b[0m\n", .{sessions_completed});
+                    try stdout.print("\n\x1b[32m\x1b[1m ★ Timer Finished! Session {d} complete. ★ \x1b[0m\n", .{sessions_completed});
                     is_running = false;
                 }
             }
