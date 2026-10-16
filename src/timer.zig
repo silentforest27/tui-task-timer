@@ -102,29 +102,22 @@ pub const TaskTimer = struct {
         };
         const reset_code = "\x1b[0m";
 
-        if (filled > 0) {
-            @memcpy(buf[out_idx..][0..color_code.len], color_code);
-            out_idx += color_code.len;
-        }
+        // Always apply color if we have a bar to draw
+        @memcpy(buf[out_idx..][0..color_code.len], color_code);
+        out_idx += color_code.len;
 
         for (0..width) |i| {
             if (i < filled) {
                 buf[out_idx] = '=';
                 out_idx += 1;
             } else {
-                if (i == filled && filled > 0) {
-                    @memcpy(buf[out_idx..][0..reset_code.len], reset_code);
-                    out_idx += reset_code.len;
-                }
                 buf[out_idx] = '-';
                 out_idx += 1;
             }
         }
         
-        if (filled == width) {
-            @memcpy(buf[out_idx..][0..reset_code.len], reset_code);
-            out_idx += reset_code.len;
-        }
+        @memcpy(buf[out_idx..][0..reset_code.len], reset_code);
+        out_idx += reset_code.len;
 
         buf[out_idx] = ']';
         out_idx += 1;
