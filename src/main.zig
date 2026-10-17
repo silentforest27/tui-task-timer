@@ -73,6 +73,7 @@ pub fn main() !void {
     var buf: [32]u8 = undefined;
     var time_buf: [16]u8 = undefined;
     var bar_buf: [64]u8 = undefined;
+    var total_buf: [16]u8 = undefined;
 
     // Set terminal to raw mode and non-blocking input
     enableRawMode() catch {};
@@ -96,9 +97,11 @@ pub fn main() !void {
     var is_running = false;
     var last_tick_time = std.time.Timer.start();
     var sessions_completed: u32 = 0;
+    var total_focus_secs: u32 = 0;
 
     while (true) {
         const formatted_time = timer.formatTime(&time_buf) catch "00:00";
+        const total_formatted = Timer.formatSeconds(&total_buf, total_focus_secs) catch "00:00";
         
         const status_text = switch (timer.state) {
             .Running => "\x1b[32mRUNNING\x1b[0m",
@@ -110,12 +113,13 @@ pub fn main() !void {
         const progress_bar = timer.formatProgressBar(&bar_buf) catch "[----------]";
 
         // Using \r\x1b[K to clear the line and ensure a consistent start
-        try stdout.print("\r\x1b[K\x1b[1mSession:\x1b[0m {s: <15} | Status: {s} | Time: {s} | {s} | Done: {d}   ", .{ 
+        try stdout.print("\r\x1b[K\x1b[1mSession:\x1b[0m {s: <15} | Status: {s} | Time: {s} | {s} | Done: {d} | Total: {s}   ", .{ 
             task_label,
             status_text,
             formatted_time,
             progress_bar,
-            sessions_completed
+            sessions_completed,
+            total_formatted
         });
 
         if (is_running) {
@@ -135,6 +139,11 @@ pub fn main() !void {
                         try stdout.print("\n\x1b[35m\x1b[1m ★ Break Finished! Ready to focus. ★ \x1b[0m\n", .{});
                         is_running = false;
                     }
+                }
+
+                // Accumulate total focus time only when in Running state (not Break)
+                if (timer.state == .Running) {
+                    total_focus_secs += 1;
                 }
             }
         }

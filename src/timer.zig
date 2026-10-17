@@ -91,9 +91,18 @@ pub const TaskTimer = struct {
     }
 
     pub fn formatTime(self: TaskTimer, buf: []u8) ![]const u8 {
-        const mins = self.remaining_secs / 60;
-        const secs = self.remaining_secs % 60;
-        return std.fmt.bufPrint(buf, "{d:0>2}:{d:0>2}", .{ mins, secs });
+        return formatSeconds(buf, self.remaining_secs);
+    }
+
+    pub fn formatSeconds(buf: []u8, total_secs: u32) ![]const u8 {
+        const hours = total_secs / 3600;
+        const mins = (total_secs % 3600) / 60;
+        const secs = total_secs % 60;
+        if (hours > 0) {
+            return std.fmt.bufPrint(buf, "{d:0>2}:{d:0>2}:{d:0>2}", .{ hours, mins, secs });
+        } else {
+            return std.fmt.bufPrint(buf, "{d:0>2}:{d:0>2}", .{ mins, secs });
+        }
     }
 
     pub fn formatProgressBar(self: TaskTimer, buf: []u8) ![]const u8 {
