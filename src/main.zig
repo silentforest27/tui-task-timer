@@ -102,14 +102,15 @@ pub fn main() !void {
         
         const status_text = switch (timer.state) {
             .Running => "\x1b[32mRUNNING\x1b[0m",
-            .Paused => "\x1b[33mPAUSED\x1b[0m",
-            .Break => "\x1b[35mBREAK\x1b[0m",
-            .Idle => "\x1b[34mIDLE\x1b[0m",
+            .Paused => "\x1b[33mPAUSED \x1b[0m",
+            .Break => "\x1b[35mBREAK  \x1b[0m",
+            .Idle => "\x1b[34mIDLE   \x1b[0m",
         };
 
         const progress_bar = timer.formatProgressBar(&bar_buf) catch "[----------]";
 
-        try stdout.print("\r\x1b[K\x1b[1mSession:\x1b[0m {s} | Status: {s} | Time: {s} | {s} | Done: {d}   ", .{ 
+        // Using \r\x1b[K to clear the line and ensure a consistent start
+        try stdout.print("\r\x1b[K\x1b[1mSession:\x1b[0m {s: <15} | Status: {s} | Time: {s} | {s} | Done: {d}   ", .{ 
             task_label,
             status_text,
             formatted_time,
