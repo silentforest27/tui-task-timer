@@ -87,7 +87,7 @@ pub fn main() !void {
     try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Task: \x1b[33m{s}\x1b[0m                                      \x1b[1m\x1b[36m║\x1b[0m\n", .{task_label});
     try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Duration: {d} mins | Break: {d} mins                \x1b[1m\x1b[36m║\x1b[0m\n", .{duration_mins, break_mins});
     try stdout.print("\x1b[1m\x1b[36m╚══════════════════════════════════════════════════════╝\x1b[0m\n", .{});
-    try stdout.print("\nControls: [s]tart, [p]ause, [r]eset, [b]reak, [+/-] adj duration, [q]uit\n", .{});
+    try stdout.print("\nControls: [s]tart, [p]ause, [r]eset, [b]reak, [+/-] adj duration, [n]ame, [q]uit\n", .{});
     try stdout.print("\x1b[2m-----------------------------------------------------\x1b[0m\n", .{});
 
     // Hide cursor
@@ -177,6 +177,19 @@ pub fn main() !void {
                             timer.updateFocusDuration(duration_mins);
                         }
                     }
+                },
+                'n' => {
+                    // Temporary disable raw mode to use standard input for naming
+                    disableRawMode() catch {};
+                    try stdout.print("\n\x1b[1mEnter new task name: \x1b[0m", .{});
+                    
+                    var name_buf: [64]u8 = undefined;
+                    if (stdin.readUntilDelimiterOrEof(&name_buf, '\n')) |name| {
+                        task_label = std.mem.trim(u8, name, "\r\n");
+                    } else _ = {};
+                    
+                    enableRawMode() catch {};
+                    try stdout.print("\x1b[?25l", .{}); // Re-hide cursor
                 },
                 'q' => {
                     try stdout.print("\x1b[?25h\n\x1b[0mExiting...\n", .{});
