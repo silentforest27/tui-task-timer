@@ -88,7 +88,7 @@ pub fn main() !void {
     try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Task: \x1b[33m{s}\x1b[0m                                      \x1b[1m\x1b[36m║\x1b[0m\n", .{task_label});
     try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Duration: {d} mins | Break: {d} mins                \x1b[1m\x1b[36m║\x1b[0m\n", .{duration_mins, break_mins});
     try stdout.print("\x1b[1m\x1b[36m╚══════════════════════════════════════════════════════╝\x1b[0m\n", .{});
-    try stdout.print("\nControls: [s]tart, [p]ause, [r]eset, [b]reak, [+/-] adj duration, [n]ame, [q]uit\n", .{});
+    try stdout.print("\nControls: [s]tart, [p]ause, [r]eset, [b]reak, [+/-] adj focus, [U/I] adj break, [n]ame, [q]uit\n", .{});
     try stdout.print("\x1b[2m-----------------------------------------------------\x1b[0m\n", .{});
 
     // Hide cursor
@@ -184,6 +184,18 @@ pub fn main() !void {
                         if (duration_mins > 1) {
                             duration_mins -= 1;
                             timer.updateFocusDuration(duration_mins);
+                        }
+                    }
+                },
+                'U' => {
+                    if (timer.state == .Idle or timer.state == .Paused) {
+                        break_mins += 1;
+                    }
+                },
+                'I' => {
+                    if (timer.state == .Idle or timer.state == .Paused) {
+                        if (break_mins > 1) {
+                            break_mins -= 1;
                         }
                     }
                 },
