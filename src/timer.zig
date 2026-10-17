@@ -52,6 +52,22 @@ pub const TaskTimer = struct {
         self.state = .Break;
     }
 
+    pub fn updateFocusDuration(self: *TaskTimer, duration_mins: u32) void {
+        const secs = duration_mins * 60;
+        self.focus_duration_secs = secs;
+        if (self.state == .Idle) {
+            self.duration_secs = secs;
+            self.remaining_secs = secs;
+        } else if (self.state == .Paused) {
+            // Proportional adjustment of remaining time if paused
+            if (self.duration_secs > 0) {
+                const ratio = @as(f32, @floatFromInt(self.remaining_secs)) / @as(f32, @floatFromInt(self.duration_secs));
+                self.remaining_secs = @intFromFloat(ratio * @as(f32, @floatFromInt(secs)));
+                self.duration_secs = secs;
+            }
+        }
+    }
+
     pub fn isFinished(self: TaskTimer) bool {
         return self.remaining_secs == 0;
     }

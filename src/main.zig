@@ -87,7 +87,7 @@ pub fn main() !void {
     try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Task: \x1b[33m{s}\x1b[0m                                      \x1b[1m\x1b[36m║\x1b[0m\n", .{task_label});
     try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Duration: {d} mins | Break: {d} mins                \x1b[1m\x1b[36m║\x1b[0m\n", .{duration_mins, break_mins});
     try stdout.print("\x1b[1m\x1b[36m╚══════════════════════════════════════════════════════╝\x1b[0m\n", .{});
-    try stdout.print("\nControls: [s]tart, [p]ause, [r]eset, [b]reak, [q]uit\n", .{});
+    try stdout.print("\nControls: [s]tart, [p]ause, [r]eset, [b]reak, [+/-] adj duration, [q]uit\n", .{});
     try stdout.print("\x1b[2m-----------------------------------------------------\x1b[0m\n", .{});
 
     // Hide cursor
@@ -163,6 +163,20 @@ pub fn main() !void {
                     timer.startBreak(break_mins);
                     is_running = true;
                     last_tick_time.reset();
+                },
+                '+' => {
+                    if (timer.state == .Idle or timer.state == .Paused) {
+                        duration_mins += 1;
+                        timer.updateFocusDuration(duration_mins);
+                    }
+                },
+                '-' => {
+                    if (timer.state == .Idle or timer.state == .Paused) {
+                        if (duration_mins > 1) {
+                            duration_mins -= 1;
+                            timer.updateFocusDuration(duration_mins);
+                        }
+                    }
                 },
                 'q' => {
                     try stdout.print("\x1b[?25h\n\x1b[0mExiting...\n", .{});
