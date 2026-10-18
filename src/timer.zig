@@ -76,14 +76,7 @@ pub const TaskTimer = struct {
         if ((self.state == .Running or self.state == .Break) and self.remaining_secs > 0) {
             self.remaining_secs -= 1;
             if (self.remaining_secs == 0) {
-                // If it was a break, it transitions to Idle
-                // If it was Running (focus), it also transitions to Idle
-                // but the main loop handles the specific transition to Break
-                if (self.state == .Break) {
-                    self.state = .Idle;
-                } else {
-                    self.state = .Idle;
-                }
+                self.state = .Idle;
                 return true; // Timer finished
             }
         }

@@ -55,41 +55,6 @@ fn saveStats(sessions: u32, focus_secs: u32) void {
     std.fs.cwd().writeFile("stats.txt", try std.fmt.allocPrint(std.heap.page_allocator, "{d} {d}", .{ sessions, focus_secs })) catch {};
 }
 
-fn logSession(task_label: []const u8, duration_mins: u32) void {
-    const file = std.fs.cwd().createFile("history.log", .{ .read = false }) catch return;
-    // Note: This simple implementation overwrites or creates. 
-    // For a real log, we would open in append mode.
-    // Correcting to append mode using openFile with .truncate = false and seeking to end.
-    std.fs.cwd().openFile("history.log", .{ .mode = .read_write }) catch return; 
-}
-
-// Improved logSession to actually append
-fn appendSessionLog(task_label: []const u8, duration_mins: u32) void {
-    var file = std.fs.cwd().createFile("history.log", .{ .read = false }) catch {
-        // If create fails, try opening existing
-        return;
-    };
-    // In a real scenario we'd use a proper append flag, but for this simple TUI 
-    // we'll simulate it by attempting to open for appending if available
-    file.close();
-}
-
-// Let's use a simpler append method compatible with std.fs
-fn writeHistory(task_label: []const u8, duration_mins: u32) void {
-    const entry = std.fmt.allocPrint(std.heap.page_allocator, "Task: {s}, Duration: {d}m\n", .{ task_label, duration_mins }) catch return;
-    defer std.heap.page_allocator.free(entry);
-
-    var file = std.fs.cwd().createFile("history.log", .{ .read = false }) catch {
-        // This is a simplification. To truly append, we need to open the file
-        // without truncating and seek to the end.
-        return;
-    };
-    // To maintain simplicity in this Zig version without complex seek logic:
-    // we'll assume a simple write for now or omit if append is too verbose
-    // Actually, let's use the correct way to append in Zig:
-    file.close();
-}
-
 fn logSessionAppend(task_label: []const u8, duration_mins: u32) void {
     const file = std.fs.cwd().openFile("history.log", .{ .mode = .read_write }) catch {
         // If file doesn't exist, create it
@@ -187,16 +152,21 @@ pub fn main() !void {
         const type_text = if (timer.state == .Break) "\x1b[35m[Break]\x1b[0m" else "\x1b[32m[Focus]\x1b[0m";
         const progress_bar = timer.formatProgressBar(&bar_buf) catch "[----------]";
 
-        // Using \r\x1b[K to clear the line and ensure a consistent start
-        try stdout.print("\r\x1b[K\x1b[1mSession:\x1b[0m {s: <15} | {s} Status: {s} | Time: {s} | {s} | Done: {d} | Total: {s}   ", .{ 
+        // Move cursor to a fixed line for status and another for stats to prevent flicker/overlap
+        try stdout.print("\r\x1b[K\x1b[1mSession:\x1b[0m {s: <15} | {s} Status: {s} | Time: {s} | {s} ", .{ 
             task_label,
             type_text,
             status_text,
             formatted_time,
-            progress_bar,
+            progress_bar
+        });
+        
+        // Print stats on the next line, then move cursor back up
+        try stdout.print("\n\x1b[K\x1b[2mTotal sessions: {d} | Total focus: {s}\x1b[0m", .{ 
             sessions_completed,
             total_formatted
         });
+        try stdout.print("\x1b[1A", .{});
 
         if (is_running) {
             if (last_tick_time.read() >= 1 * std.time.ns_per_s) {
