@@ -121,7 +121,7 @@ pub fn main() !void {
     try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Task: \x1b[33m{s}\x1b[0m                                      \x1b[1m\x1b[36m║\x1b[0m\n", .{task_label});
     try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Duration: {d} mins | Break: {d} mins                \x1b[1m\x1b[36m║\x1b[0m\n", .{duration_mins, break_mins});
     try stdout.print("\x1b[1m\x1b[36m╚══════════════════════════════════════════════════════╝\x1b[0m\n", .{});
-    try stdout.print("\nControls: [s]tart, [p]ause, [r]eset, [b]reak, [+/-] adj focus, [U/I] adj break, [n]ame, [q]uit\n", .{});
+    try stdout.print("\nControls: [s]tart, [p]ause, [r]eset, [b]reak, [+/-] adj focus, [U/I] adj break, [n]ame, [C]lear stats, [q]uit\n", .{});
     try stdout.print("\x1b[2m-----------------------------------------------------\x1b[0m\n", .{});
 
     // Hide cursor
@@ -267,6 +267,13 @@ pub fn main() !void {
                     
                     enableRawMode() catch {};
                     try stdout.print("\x1b[?25l", .{}); // Re-hide cursor
+                },
+                'C' => {
+                    sessions_completed = 0;
+                    total_focus_secs = 0;
+                    saveStats(0, 0);
+                    std.fs.cwd().writeFile("history.log", "") catch {};
+                    try stdout.print("\n\x1b[31m\x1b[1m ★ Stats and History Cleared ★ \x1b[0m\n", .{});
                 },
                 'q' => {
                     saveStats(sessions_completed, total_focus_secs);
