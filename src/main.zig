@@ -36,6 +36,25 @@ fn disableRawMode() !void {
     std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, 0);
 }
 
+fn loadStats() (u32, u32) {
+    const file = std.fs.cwd().openFile("stats.txt", .{ .mode = .read_only }) catch return (0, 0);
+    defer file.close();
+
+    var buf: [64]u8 = undefined;
+    const bytes_read = file.readAll(&buf) catch return (0, 0);
+    const content = buf[0..bytes_read];
+
+    var it = std.mem.splitScalar(u8, content, ' ');
+    const sessions = std.fmt.parseInt(u32, it.next() orelse "0", 10) catch 0;
+    const focus_secs = std.fmt.parseInt(u32, it.next() orelse "0", 10) catch 0;
+
+    return (sessions, focus_secs);
+}
+
+fn saveStats(sessions: u32, focus_secs: u32) void {
+    std.fs.cwd().writeFile("stats.txt", try std.fmt.allocPrint(std.heap.page_allocator, "{d} {d}", .{ sessions, focus_secs })) catch {};
+}
+
 pub fn main() !void {
     var stdout = std.io.getStdOut().writer();
     var stdin = std.io.getStdIn().reader();
@@ -96,8 +115,14 @@ pub fn main() !void {
 
     var is_running = false;
     var last_tick_time = std.time.Timer.start();
+    
     var sessions_completed: u32 = 0;
     var total_focus_secs: u32 = 0;
+    { 
+        const loaded = loadStats();
+        sessions_completed = loaded.0;
+        total_focus_secs = loaded.1;
+    }
 
     while (true) {
         const formatted_time = timer.formatTime(&time_buf) catch "00:00";
@@ -133,6 +158,7 @@ pub fn main() !void {
                         try stdout.print("\n\x1b[32m\x1b[1m ★ Focus Session Complete! Starting Break... ★ \x1b[0m\n", .{});
                         sessions_completed += 1;
                         is_running = true; // Keep running for the break
+                        saveStats(sessions_completed, total_focus_secs);
                     } else if (timer.state == .Break) {
                         // If we just finished a break, go to Idle
                         try stdout.print("\a", .{});
@@ -144,6 +170,10 @@ pub fn main() !void {
                 // Accumulate total focus time only when in Running state (not Break)
                 if (timer.state == .Running) {
                     total_focus_secs += 1;
+                    // Periodically save focus time (every 30 seconds) to avoid too many writes
+                    if (total_focus_secs % 30 == 0) {
+                        saveStats(sessions_completed, total_focus_secs);
+                    }
                 }
             }
         }
@@ -213,6 +243,7 @@ pub fn main() !void {
                     try stdout.print("\x1b[?25l", .{}); // Re-hide cursor
                 },
                 'q' => {
+                    saveStats(sessions_completed, total_focus_secs);
                     try stdout.print("\x1b[?25h\n\x1b[0mExiting...\n", .{});
                     std.process.exit(0);
                 },
