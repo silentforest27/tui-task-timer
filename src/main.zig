@@ -135,11 +135,13 @@ pub fn main() !void {
             .Idle => "\x1b[34mIDLE   \x1b[0m",
         };
 
+        const type_text = if (timer.state == .Break) "\x1b[35m[Break]\x1b[0m" else "\x1b[32m[Focus]\x1b[0m";
         const progress_bar = timer.formatProgressBar(&bar_buf) catch "[----------]";
 
         // Using \r\x1b[K to clear the line and ensure a consistent start
-        try stdout.print("\r\x1b[K\x1b[1mSession:\x1b[0m {s: <15} | Status: {s} | Time: {s} | {s} | Done: {d} | Total: {s}   ", .{ 
+        try stdout.print("\r\x1b[K\x1b[1mSession:\x1b[0m {s: <15} | {s} Status: {s} | Time: {s} | {s} | Done: {d} | Total: {s}   ", .{ 
             task_label,
+            type_text,
             status_text,
             formatted_time,
             progress_bar,
@@ -207,6 +209,7 @@ pub fn main() !void {
                     if (timer.state == .Idle or timer.state == .Paused) {
                         duration_mins += 1;
                         timer.updateFocusDuration(duration_mins);
+                        try stdout.print("\a", .{});
                     }
                 },
                 '-' => {
@@ -214,18 +217,21 @@ pub fn main() !void {
                         if (duration_mins > 1) {
                             duration_mins -= 1;
                             timer.updateFocusDuration(duration_mins);
+                            try stdout.print("\a", .{});
                         }
                     }
                 },
                 'U' => {
                     if (timer.state == .Idle or timer.state == .Paused) {
                         break_mins += 1;
+                        try stdout.print("\a", .{});
                     }
                 },
                 'I' => {
                     if (timer.state == .Idle or timer.state == .Paused) {
                         if (break_mins > 1) {
                             break_mins -= 1;
+                            try stdout.print("\a", .{});
                         }
                     }
                 },
