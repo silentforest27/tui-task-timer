@@ -50,8 +50,8 @@ fn loadStats() Stats {
     const content = buf[0..bytes_read];
 
     var it = std.mem.splitScalar(u8, content, ' ');
-    const sessions = std.fmt.parseInt(u32, it.next() orelse "0", 10) catch 0;
-    const focus_secs = std.fmt.parseInt(u32, it.next() orelse "0", 10) catch 0;
+    const sessions = std.fmt.parseInt(u32, std.mem.trim(u8, it.next() orelse "0", " \t\r\n"), 10) catch 0;
+    const focus_secs = std.fmt.parseInt(u32, std.mem.trim(u8, it.next() orelse "0", " \t\r\n"), 10) catch 0;
 
     return Stats{ .sessions = sessions, .focus_secs = focus_secs };
 }
@@ -88,7 +88,11 @@ pub fn main() !void {
 
     if (args.len > 1) {
         if (std.fmt.parseInt(u32, args[1], 10)) |val| {
-            duration_mins = val;
+            if (val > 0) {
+                duration_mins = val;
+            } else {
+                try stdout.print("Invalid duration provided. Using default 25m.\n", .{});
+            }
         } else {
             try stdout.print("Invalid duration provided. Using default 25m.\n", .{});
         }
@@ -100,7 +104,11 @@ pub fn main() !void {
 
     if (args.len > 3) {
         if (std.fmt.parseInt(u32, args[3], 10)) |val| {
-            break_mins = val;
+            if (val > 0) {
+                break_mins = val;
+            } else {
+                try stdout.print("Invalid break duration provided. Using default 5m.\n", .{});
+            }
         } else {
             try stdout.print("Invalid break duration provided. Using default 5m.\n", .{});
         }
@@ -269,7 +277,10 @@ pub fn main() !void {
                     try stdout.print("\n\x1b[1mEnter new task name: \x1b[0m", .{});
 
                     if (stdin.readUntilDelimiterOrEof(&task_name_buf, '\n') catch null) |name| {
-                        task_label = std.mem.trim(u8, name, "\r\n");
+                        const trimmed = std.mem.trim(u8, name, "\r\n");
+                        if (trimmed.len > 0) {
+                            task_label = trimmed;
+                        }
                     }
 
                     enableRawMode() catch {};
