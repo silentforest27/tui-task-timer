@@ -11,20 +11,20 @@ const ECHO = @as(u32, 0x00000004);
 const ICANON = @as(u32, 0x00000002);
 
 fn enableRawMode() !void {
-    var term : termios = undefined;
+    var term: termios = undefined;
     _ = tcgetattr(STDIN_FILENO, &term);
 
     // Disable echoing and canonical mode (buffered input)
     term.c_lflag &= ~(ECHO | ICANON);
-    
+
     _ = tcsetattr(STDIN_FILENO, 0, &term);
 
     // Set STDIN to non-blocking for the read call
-    std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, std.os.linux.O_NONBLOCK);
+    _ = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, std.os.linux.O_NONBLOCK);
 }
 
 fn disableRawMode() !void {
-    var term : termios = undefined;
+    var term: termios = undefined;
     _ = tcgetattr(STDIN_FILENO, &term);
 
     // Restore echoing and canonical mode
@@ -33,40 +33,44 @@ fn disableRawMode() !void {
     _ = tcsetattr(STDIN_FILENO, 0, &term);
 
     // Restore blocking I/O
-    std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, 0);
+    _ = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, 0);
 }
 
-fn loadStats() (u32, u32) {
-    const file = std.fs.cwd().openFile("stats.txt", .{ .mode = .read_only }) catch return (0, 0);
+const Stats = struct {
+    sessions: u32,
+    focus_secs: u32,
+};
+
+fn loadStats() Stats {
+    const file = std.fs.cwd().openFile("stats.txt", .{ .mode = .read_only }) catch return Stats{ .sessions = 0, .focus_secs = 0 };
     defer file.close();
 
     var buf: [64]u8 = undefined;
-    const bytes_read = file.readAll(&buf) catch return (0, 0);
+    const bytes_read = file.readAll(&buf) catch return Stats{ .sessions = 0, .focus_secs = 0 };
     const content = buf[0..bytes_read];
 
     var it = std.mem.splitScalar(u8, content, ' ');
     const sessions = std.fmt.parseInt(u32, it.next() orelse "0", 10) catch 0;
     const focus_secs = std.fmt.parseInt(u32, it.next() orelse "0", 10) catch 0;
 
-    return (sessions, focus_secs);
+    return Stats{ .sessions = sessions, .focus_secs = focus_secs };
 }
 
 fn saveStats(sessions: u32, focus_secs: u32) void {
-    std.fs.cwd().writeFile("stats.txt", try std.fmt.allocPrint(std.heap.page_allocator, "{d} {d}", .{ sessions, focus_secs })) catch {};
+    var buf: [64]u8 = undefined;
+    const data = std.fmt.bufPrint(&buf, "{d} {d}", .{ sessions, focus_secs }) catch return;
+    std.fs.cwd().writeFile("stats.txt", data) catch {};
 }
 
 fn logSessionAppend(task_label: []const u8, duration_mins: u32) void {
-    const file = std.fs.cwd().openFile("history.log", .{ .mode = .read_write }) catch {
-        // If file doesn't exist, create it
-        std.fs.cwd().writeFile("history.log", "") catch {};
-        return;
-    };
+    const file = std.fs.cwd().createFile("history.log", .{ .truncate = false }) catch return;
     defer file.close();
-    try file.seekToEnd();
-    
+
+    file.seekToEnd() catch return;
+
     var buf: [128]u8 = undefined;
-    const len = std.fmt.bufPrint(&buf, "Task: {s}, Duration: {d}m\n", .{ task_label, duration_mins }) catch 0;
-    _ = file.writeAll(buf[0..len]);
+    const data = std.fmt.bufPrint(&buf, "Task: {s}, Duration: {d}m\n", .{ task_label, duration_mins }) catch return;
+    _ = file.writeAll(data) catch {};
 }
 
 pub fn main() !void {
@@ -107,6 +111,7 @@ pub fn main() !void {
     var time_buf: [16]u8 = undefined;
     var bar_buf: [64]u8 = undefined;
     var total_buf: [16]u8 = undefined;
+    var task_name_buf: [64]u8 = undefined;
 
     // Set terminal to raw mode and non-blocking input
     enableRawMode() catch {};
@@ -128,20 +133,20 @@ pub fn main() !void {
     try stdout.print("\x1b[?25l", .{});
 
     var is_running = false;
-    var last_tick_time = std.time.Timer.start();
-    
+    var last_tick_time = try std.time.Timer.start();
+
     var sessions_completed: u32 = 0;
     var total_focus_secs: u32 = 0;
-    { 
+    {
         const loaded = loadStats();
-        sessions_completed = loaded.0;
-        total_focus_secs = loaded.1;
+        sessions_completed = loaded.sessions;
+        total_focus_secs = loaded.focus_secs;
     }
 
     while (true) {
         const formatted_time = timer.formatTime(&time_buf) catch "00:00";
         const total_formatted = Timer.formatSeconds(&total_buf, total_focus_secs) catch "00:00";
-        
+
         const status_text = switch (timer.state) {
             .Running => "\x1b[32mRUNNING\x1b[0m",
             .Paused => "\x1b[33mPAUSED \x1b[0m",
@@ -153,16 +158,16 @@ pub fn main() !void {
         const progress_bar = timer.formatProgressBar(&bar_buf) catch "[----------]";
 
         // Move cursor to a fixed line for status and another for stats to prevent flicker/overlap
-        try stdout.print("\r\x1b[K\x1b[1mSession:\x1b[0m {s: <15} | {s} Status: {s} | Time: {s} | {s} ", .{ 
+        try stdout.print("\r\x1b[K\x1b[1mSession:\x1b[0m {s: <15} | {s} Status: {s} | Time: {s} | {s} ", .{
             task_label,
             type_text,
             status_text,
             formatted_time,
             progress_bar
         });
-        
+
         // Print stats on the next line, then move cursor back up
-        try stdout.print("\n\x1b[K\x1b[2mTotal sessions: {d} | Total focus: {s}\x1b[0m", .{ 
+        try stdout.print("\n\x1b[K\x1b[2mTotal sessions: {d} | Total focus: {s}\x1b[0m", .{
             sessions_completed,
             total_formatted
         });
@@ -200,7 +205,7 @@ pub fn main() !void {
             }
         }
 
-        while (stdin.read(&buf) catch 0 != 0) {
+        while ((stdin.read(&buf) catch 0) != 0) {
             switch (buf[0]) {
                 's' => {
                     if (timer.state != .Running) {
@@ -259,12 +264,11 @@ pub fn main() !void {
                     // Temporary disable raw mode to use standard input for naming
                     disableRawMode() catch {};
                     try stdout.print("\n\x1b[1mEnter new task name: \x1b[0m", .{});
-                    
-                    var name_buf: [64]u8 = undefined;
-                    if (stdin.readUntilDelimiterOrEof(&name_buf, '\n')) |name| {
+
+                    if (stdin.readUntilDelimiterOrEof(&task_name_buf, '\n') catch null) |name| {
                         task_label = std.mem.trim(u8, name, "\r\n");
-                    } else _ = {};
-                    
+                    }
+
                     enableRawMode() catch {};
                     try stdout.print("\x1b[?25l", .{}); // Re-hide cursor
                 },
