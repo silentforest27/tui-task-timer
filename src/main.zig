@@ -176,37 +176,40 @@ pub fn main() !void {
         if (is_running) {
             if (last_tick_time.read() >= 1 * std.time.ns_per_s) {
                 last_tick_time.reset();
+
+                // Preserve whether the completed tick belonged to a break before
+                // tick() transitions the timer to Idle.
+                const was_break = timer.state == .Break;
+
+                // Count elapsed focus time before advancing the timer.
+                if (timer.state == .Running) {
+                    total_focus_secs += 1;
+                    if (total_focus_secs % 30 == 0) {
+                        saveStats(sessions_completed, total_focus_secs);
+                    }
+                }
+
                 if (timer.tick()) {
-                    if (timer.state == .Idle) {
-                        // If we just finished a focus session, auto-start break
+                    if (was_break) {
+                        try stdout.print("\a", .{});
+                        try stdout.print("\n\x1b[35m\x1b[1m ★ Break Finished! Ready to focus. ★ \x1b[0m\n", .{});
+                        is_running = false;
+                    } else {
                         timer.startBreak(break_mins);
                         try stdout.print("\a", .{});
                         try stdout.print("\n\x1b[32m\x1b[1m ★ Focus Session Complete! Starting Break... ★ \x1b[0m\n", .{});
                         sessions_completed += 1;
-                        is_running = true; // Keep running for the break
+                        is_running = true;
                         saveStats(sessions_completed, total_focus_secs);
                         logSessionAppend(task_label, duration_mins);
-                    } else if (timer.state == .Break) {
-                        // If we just finished a break, go to Idle
-                        try stdout.print("\a", .{});
-                        try stdout.print("\n\x1b[35m\x1b[1m ★ Break Finished! Ready to focus. ★ \x1b[0m\n", .{});
-                        is_running = false;
-                    }
-                }
-
-                // Accumulate total focus time only when in Running state (not Break)
-                if (timer.state == .Running) {
-                    total_focus_secs += 1;
-                    // Periodically save focus time (every 30 seconds) to avoid too many writes
-                    if (total_focus_secs % 30 == 0) {
-                        saveStats(sessions_completed, total_focus_secs);
                     }
                 }
             }
         }
 
-        while ((stdin.read(&buf) catch 0) != 0) {
-            switch (buf[0]) {
+        while (true) {
+            const key = stdin.readByte() catch break;
+            switch (key) {
                 's' => {
                     if (timer.state != .Running) {
                         timer.start();

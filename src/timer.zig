@@ -146,3 +146,66 @@ pub const TaskTimer = struct {
         return buf[0..out_idx];
     }
 };
+
+test "init creates an idle focus timer" {
+    const timer = TaskTimer.init(25);
+    try std.testing.expectEqual(@as(u32, 25 * 60), timer.remaining_secs);
+    try std.testing.expectEqual(TimerState.Idle, timer.state);
+    try std.testing.expectEqual(@as(u32, 25 * 60), timer.focus_duration_secs);
+}
+
+test "tick counts down and finishes" {
+    var timer = TaskTimer.init(1);
+    timer.state = .Running;
+    timer.remaining_secs = 2;
+
+    try std.testing.expect(!timer.tick());
+    try std.testing.expectEqual(@as(u32, 1), timer.remaining_secs);
+    try std.testing.expectEqual(TimerState.Running, timer.state);
+
+    try std.testing.expect(timer.tick());
+    try std.testing.expectEqual(@as(u32, 0), timer.remaining_secs);
+    try std.testing.expectEqual(TimerState.Idle, timer.state);
+}
+
+test "startBreak and tick finish a break" {
+    var timer = TaskTimer.init(1);
+    timer.startBreak(1);
+    timer.remaining_secs = 1;
+
+    try std.testing.expect(timer.tick());
+    try std.testing.expectEqual(@as(u32, 0), timer.remaining_secs);
+    try std.testing.expectEqual(TimerState.Idle, timer.state);
+}
+
+test "formatTime and formatSeconds" {
+    var buf: [16]u8 = undefined;
+    const long = try TaskTimer.formatSeconds(&buf, 3661);
+    try std.testing.expectEqualStrings("01:01:01", long);
+
+    var timer = TaskTimer.init(1);
+    timer.remaining_secs = 5;
+    const short = try timer.formatTime(&buf);
+    try std.testing.expectEqualStrings("00:05", short);
+}
+
+test "formatProgressBar reports elapsed percentage" {
+    var timer = TaskTimer.init(1);
+    timer.state = .Running;
+    timer.remaining_secs = 30;
+
+    var buf: [64]u8 = undefined;
+    const bar = try timer.formatProgressBar(&buf);
+    try std.testing.expect(std.mem.indexOf(u8, bar, "50%") != null);
+}
+
+test "reset restores the focus duration" {
+    var timer = TaskTimer.init(2);
+    timer.state = .Running;
+    timer.remaining_secs = 10;
+
+    timer.reset();
+    try std.testing.expectEqual(@as(u32, 120), timer.remaining_secs);
+    try std.testing.expectEqual(@as(u32, 120), timer.duration_secs);
+    try std.testing.expectEqual(TimerState.Idle, timer.state);
+}
