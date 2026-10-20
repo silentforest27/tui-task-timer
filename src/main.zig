@@ -190,7 +190,7 @@ pub fn main() !void {
                 const was_break = timer.state == .Break;
 
                 // Count elapsed focus time before advancing the timer.
-                if (timer.state == .Running) {
+                if (timer.state == .Running and timer.remaining_secs > 0) {
                     total_focus_secs += 1;
                     if (total_focus_secs % 30 == 0) {
                         saveStats(sessions_completed, total_focus_secs);

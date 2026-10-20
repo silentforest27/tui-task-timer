@@ -32,6 +32,9 @@ pub const TaskTimer = struct {
             } else {
                 self.state = .Running;
             }
+            if (self.remaining_secs == 0 and self.duration_secs > 0) {
+                self.remaining_secs = self.duration_secs;
+            }
             self.paused_from_break = false;
             return;
         }
@@ -121,9 +124,12 @@ pub const TaskTimer = struct {
 
         if (self.duration_secs == 0) return error.InvalidDuration;
 
-        const elapsed = self.duration_secs - self.remaining_secs;
-        const filled = (elapsed * width) / self.duration_secs;
-        const percent = (elapsed * 100) / self.duration_secs;
+        const elapsed: u32 = if (self.remaining_secs >= self.duration_secs)
+            0
+        else
+            self.duration_secs - self.remaining_secs;
+        const filled: usize = @intCast((@as(u64, elapsed) * width) / self.duration_secs);
+        const percent: u32 = @intCast((@as(u64, elapsed) * 100) / self.duration_secs);
 
         var out_idx: usize = 0;
         buf[out_idx] = '[';
@@ -284,4 +290,40 @@ test "focus duration updates ignore a paused break" {
     try std.testing.expectEqual(@as(u32, 5 * 60), timer.focus_duration_secs);
     try std.testing.expectEqual(@as(u32, 40), timer.remaining_secs);
     try std.testing.expectEqual(@as(u32, 60), timer.duration_secs);
+}
+
+test "formatProgressBar clamps when remaining exceeds duration" {
+    var timer = TaskTimer.init(1);
+    timer.state = .Running;
+    timer.duration_secs = 60;
+    timer.remaining_secs = 100;
+
+    var buf: [64]u8 = undefined;
+    const bar = try timer.formatProgressBar(&buf);
+    try std.testing.expect(std.mem.indexOf(u8, bar, "0%") != null);
+}
+
+test "start restores a paused focus timer with no remaining time" {
+    var timer = TaskTimer.init(2);
+    timer.state = .Paused;
+    timer.paused_from_break = false;
+    timer.duration_secs = 120;
+    timer.remaining_secs = 0;
+
+    timer.start();
+    try std.testing.expectEqual(TimerState.Running, timer.state);
+    try std.testing.expectEqual(@as(u32, 120), timer.remaining_secs);
+}
+
+test "start restores a paused break with no remaining time" {
+    var timer = TaskTimer.init(2);
+    timer.state = .Paused;
+    timer.paused_from_break = true;
+    timer.duration_secs = 60;
+    timer.remaining_secs = 0;
+
+    timer.start();
+    try std.testing.expectEqual(TimerState.Break, timer.state);
+    try std.testing.expect(!timer.paused_from_break);
+    try std.testing.expectEqual(@as(u32, 60), timer.remaining_secs);
 }
