@@ -260,6 +260,7 @@ pub fn main() !void {
                 'U' => {
                     if (timer.state == .Idle or timer.state == .Paused) {
                         break_mins += 1;
+                        timer.updateBreakDuration(break_mins);
                         try stdout.print("\a", .{});
                     }
                 },
@@ -267,6 +268,7 @@ pub fn main() !void {
                     if (timer.state == .Idle or timer.state == .Paused) {
                         if (break_mins > 1) {
                             break_mins -= 1;
+                            timer.updateBreakDuration(break_mins);
                             try stdout.print("\a", .{});
                         }
                     }
@@ -296,7 +298,7 @@ pub fn main() !void {
                 'q' => {
                     saveStats(sessions_completed, total_focus_secs);
                     try stdout.print("\x1b[?25h\n\x1b[0mExiting...\n", .{});
-                    std.process.exit(0);
+                    return;
                 },
                 else => {},
             }

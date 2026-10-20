@@ -1,5 +1,19 @@
 const std = @import("std");
 
+fn scaleRemaining(remaining: u32, old_duration: u32, new_duration: u32) u32 {
+    if (new_duration == 0) return 0;
+    if (old_duration == 0) return new_duration;
+
+    var rem = remaining;
+    if (rem > old_duration) rem = old_duration;
+    if (rem == 0) return 0;
+
+    const scaled: u32 = @intCast((@as(u64, rem) * @as(u64, new_duration)) / @as(u64, old_duration));
+    if (scaled == 0) return 1;
+    if (scaled > new_duration) return new_duration;
+    return scaled;
+}
+
 pub const TimerState = enum {
     Idle,
     Running,
@@ -79,12 +93,19 @@ pub const TaskTimer = struct {
             self.duration_secs = secs;
             self.remaining_secs = secs;
         } else if (self.state == .Paused and !self.paused_from_break) {
-            // Proportional adjustment of remaining time if a focus session is paused.
-            if (self.duration_secs > 0) {
-                const ratio = @as(f32, @floatFromInt(self.remaining_secs)) / @as(f32, @floatFromInt(self.duration_secs));
-                self.remaining_secs = @intFromFloat(ratio * @as(f32, @floatFromInt(secs)));
-                self.duration_secs = secs;
-            }
+            self.remaining_secs = scaleRemaining(self.remaining_secs, self.duration_secs, secs);
+            self.duration_secs = secs;
+        }
+    }
+
+    pub fn updateBreakDuration(self: *TaskTimer, break_mins: u32) void {
+        const secs = break_mins * 60;
+        if (self.state == .Break) {
+            self.remaining_secs = scaleRemaining(self.remaining_secs, self.duration_secs, secs);
+            self.duration_secs = secs;
+        } else if (self.state == .Paused and self.paused_from_break) {
+            self.remaining_secs = scaleRemaining(self.remaining_secs, self.duration_secs, secs);
+            self.duration_secs = secs;
         }
     }
 
@@ -326,4 +347,43 @@ test "start restores a paused break with no remaining time" {
     try std.testing.expectEqual(TimerState.Break, timer.state);
     try std.testing.expect(!timer.paused_from_break);
     try std.testing.expectEqual(@as(u32, 60), timer.remaining_secs);
+}
+
+test "focus duration update scales paused remaining time" {
+    var timer = TaskTimer.init(2);
+    timer.state = .Paused;
+    timer.paused_from_break = false;
+    timer.duration_secs = 120;
+    timer.remaining_secs = 1;
+
+    timer.updateFocusDuration(1);
+    try std.testing.expectEqual(@as(u32, 60), timer.focus_duration_secs);
+    try std.testing.expectEqual(@as(u32, 60), timer.duration_secs);
+    try std.testing.expectEqual(@as(u32, 1), timer.remaining_secs);
+}
+
+test "break duration update scales an active break" {
+    var timer = TaskTimer.init(2);
+    timer.startBreak(2);
+    timer.remaining_secs = 30;
+    timer.duration_secs = 120;
+
+    timer.updateBreakDuration(1);
+    try std.testing.expectEqual(TimerState.Break, timer.state);
+    try std.testing.expectEqual(@as(u32, 60), timer.duration_secs);
+    try std.testing.expectEqual(@as(u32, 15), timer.remaining_secs);
+}
+
+test "break duration update scales a paused break" {
+    var timer = TaskTimer.init(2);
+    timer.startBreak(2);
+    timer.remaining_secs = 30;
+    timer.duration_secs = 120;
+    timer.pause();
+
+    timer.updateBreakDuration(1);
+    try std.testing.expectEqual(TimerState.Paused, timer.state);
+    try std.testing.expect(timer.paused_from_break);
+    try std.testing.expectEqual(@as(u32, 60), timer.duration_secs);
+    try std.testing.expectEqual(@as(u32, 15), timer.remaining_secs);
 }
