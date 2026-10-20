@@ -115,15 +115,15 @@ pub fn main() !void {
     }
 
     var timer = Timer.TaskTimer.init(duration_mins);
-    var buf: [32]u8 = undefined;
     var time_buf: [16]u8 = undefined;
     var bar_buf: [64]u8 = undefined;
     var total_buf: [16]u8 = undefined;
-    var task_name_buf: [64]u8 = undefined;
+    var task_name_buf: [256]u8 = undefined;
 
     // Set terminal to raw mode and non-blocking input
     enableRawMode() catch {};
     defer disableRawMode() catch {};
+    defer stdout.print("\x1b[?25h", .{}) catch {};
 
     // Clear screen and move cursor to top-left
     try stdout.print("\x1b[2J\x1b[H", .{});
