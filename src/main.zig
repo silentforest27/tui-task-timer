@@ -48,8 +48,6 @@ fn disableRawMode() !void {
 
     if (has_original_stdin_flags) {
         _ = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, original_stdin_flags);
-    } else {
-        _ = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, 0);
     }
 }
 
@@ -139,6 +137,7 @@ pub fn main() !void {
 
     // Set terminal to raw mode and non-blocking input
     enableRawMode() catch {};
+    defer stdout.print("\x1b[?25h", .{}) catch {};
     defer disableRawMode() catch {};
     defer stdout.print("\x1b[?25h", .{}) catch {};
 
