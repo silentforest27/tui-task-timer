@@ -99,7 +99,7 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(
         std.heap.page_allocator,
     );
-    defer std.heap.page_allocator.free(args);
+    defer std.process.argsFree(std.heap.page_allocator, args);
 
     if (args.len > 1) {
         if (std.fmt.parseInt(u32, args[1], 10)) |val| {
@@ -133,13 +133,12 @@ pub fn main() !void {
     var time_buf: [16]u8 = undefined;
     var bar_buf: [64]u8 = undefined;
     var total_buf: [16]u8 = undefined;
-    var task_name_buf: [512]u8 = undefined;
+    var task_name_buf: [1024]u8 = undefined;
 
     // Set terminal to raw mode and non-blocking input
     enableRawMode() catch {};
     defer stdout.print("\x1b[?25h", .{}) catch {};
     defer disableRawMode() catch {};
-    defer stdout.print("\x1b[?25h", .{}) catch {};
 
     // Clear screen and move cursor to top-left
     try stdout.print("\x1b[2J\x1b[H", .{});
@@ -259,9 +258,11 @@ pub fn main() !void {
                 },
                 '+' => {
                     if (timer.state == .Idle or timer.state == .Paused) {
-                        duration_mins += 1;
-                        timer.updateFocusDuration(duration_mins);
-                        try stdout.print("\a", .{});
+                        if (duration_mins < std.math.maxInt(u32)) {
+                            duration_mins += 1;
+                            timer.updateFocusDuration(duration_mins);
+                            try stdout.print("\a", .{});
+                        }
                     }
                 },
                 '-' => {
@@ -275,9 +276,11 @@ pub fn main() !void {
                 },
                 'U' => {
                     if (timer.state == .Idle or timer.state == .Paused) {
-                        break_mins += 1;
-                        timer.updateBreakDuration(break_mins);
-                        try stdout.print("\a", .{});
+                        if (break_mins < std.math.maxInt(u32)) {
+                            break_mins += 1;
+                            timer.updateBreakDuration(break_mins);
+                            try stdout.print("\a", .{});
+                        }
                     }
                 },
                 'I' => {
