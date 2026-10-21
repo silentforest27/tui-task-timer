@@ -8,10 +8,17 @@ fn scaleRemaining(remaining: u32, old_duration: u32, new_duration: u32) u32 {
     if (rem > old_duration) rem = old_duration;
     if (rem == 0) return 0;
 
-    const scaled: u32 = @intCast((@as(u64, rem) * @as(u64, new_duration)) / @as(u64, old_duration));
+    const scaled128 = (@as(u128, rem) * @as(u128, new_duration)) / @as(u128, old_duration);
+    const scaled: u32 = if (scaled128 > new_duration) new_duration else @intCast(scaled128);
     if (scaled == 0) return 1;
     if (scaled > new_duration) return new_duration;
     return scaled;
+}
+
+fn minutesToSeconds(mins: u32) u32 {
+    const seconds = @as(u64, mins) * 60;
+    if (seconds > std.math.maxInt(u32)) return std.math.maxInt(u32);
+    return @intCast(seconds);
 }
 
 pub const TimerState = enum {
@@ -29,7 +36,7 @@ pub const TaskTimer = struct {
     paused_from_break: bool = false,
 
     pub fn init(duration_mins: u32) TaskTimer {
-        const secs = duration_mins * 60;
+        const secs = minutesToSeconds(duration_mins);
         return TaskTimer{
             .focus_duration_secs = secs,
             .duration_secs = secs,
@@ -80,14 +87,15 @@ pub const TaskTimer = struct {
     }
 
     pub fn startBreak(self: *TaskTimer, break_mins: u32) void {
-        self.duration_secs = break_mins * 60;
-        self.remaining_secs = break_mins * 60;
+        const secs = minutesToSeconds(break_mins);
+        self.duration_secs = secs;
+        self.remaining_secs = secs;
         self.state = .Break;
         self.paused_from_break = false;
     }
 
     pub fn updateFocusDuration(self: *TaskTimer, duration_mins: u32) void {
-        const secs = duration_mins * 60;
+        const secs = minutesToSeconds(duration_mins);
         self.focus_duration_secs = secs;
         if (self.state == .Idle) {
             self.duration_secs = secs;
@@ -99,7 +107,7 @@ pub const TaskTimer = struct {
     }
 
     pub fn updateBreakDuration(self: *TaskTimer, break_mins: u32) void {
-        const secs = break_mins * 60;
+        const secs = minutesToSeconds(break_mins);
         if (self.state == .Break) {
             self.remaining_secs = scaleRemaining(self.remaining_secs, self.duration_secs, secs);
             self.duration_secs = secs;
@@ -386,4 +394,26 @@ test "break duration update scales a paused break" {
     try std.testing.expect(timer.paused_from_break);
     try std.testing.expectEqual(@as(u32, 60), timer.duration_secs);
     try std.testing.expectEqual(@as(u32, 15), timer.remaining_secs);
+}
+
+test "large durations do not overflow" {
+    const timer = TaskTimer.init(std.math.maxInt(u32));
+    try std.testing.expectEqual(std.math.maxInt(u32), timer.remaining_secs);
+    try std.testing.expectEqual(std.math.maxInt(u32), timer.duration_secs);
+    try std.testing.expectEqual(std.math.maxInt(u32), timer.focus_duration_secs);
+
+    var paused = TaskTimer.init(1);
+    paused.state = .Paused;
+    paused.paused_from_break = false;
+    paused.duration_secs = 60;
+    paused.remaining_secs = 30;
+    paused.updateFocusDuration(std.math.maxInt(u32));
+    try std.testing.expectEqual(std.math.maxInt(u32), paused.focus_duration_secs);
+    try std.testing.expectEqual(std.math.maxInt(u32), paused.duration_secs);
+    try std.testing.expect(paused.remaining_secs <= paused.duration_secs);
+
+    var breaking = TaskTimer.init(1);
+    breaking.startBreak(std.math.maxInt(u32));
+    try std.testing.expectEqual(std.math.maxInt(u32), breaking.duration_secs);
+    try std.testing.expectEqual(std.math.maxInt(u32), breaking.remaining_secs);
 }
