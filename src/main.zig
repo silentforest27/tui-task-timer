@@ -7,33 +7,50 @@ const tcgetattr = std.os.linux.tcgetattr;
 const tcsetattr = std.os.linux.tcsetattr;
 const STDIN_FILENO = std.os.linux.STDIN_FILENO;
 
-const ECHO = @as(u32, 0x00000004);
+const ISIG = @as(u32, 0x00000001);
 const ICANON = @as(u32, 0x00000002);
+const ECHO = @as(u32, 0x00000008);
+
+var original_termios: termios = undefined;
+var has_original_termios: bool = false;
+var original_stdin_flags: c_int = 0;
+var has_original_stdin_flags: bool = false;
 
 fn enableRawMode() !void {
     var term: termios = undefined;
     _ = tcgetattr(STDIN_FILENO, &term);
 
-    // Disable echoing and canonical mode (buffered input)
-    term.c_lflag &= ~(ECHO | ICANON);
+    original_termios = term;
+    has_original_termios = true;
+
+    // Disable signals, canonical input, and echo for interactive single-key input.
+    term.c_lflag &= ~(ISIG | ICANON | ECHO);
 
     _ = tcsetattr(STDIN_FILENO, 0, &term);
 
+    const flags = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_GETFL, 0);
+    original_stdin_flags = @intCast(flags);
+    has_original_stdin_flags = true;
+
     // Set STDIN to non-blocking for the read call
-    _ = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, std.os.linux.O_NONBLOCK);
+    _ = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, original_stdin_flags | std.os.linux.O_NONBLOCK);
 }
 
 fn disableRawMode() !void {
-    var term: termios = undefined;
-    _ = tcgetattr(STDIN_FILENO, &term);
+    if (has_original_termios) {
+        _ = tcsetattr(STDIN_FILENO, 0, &original_termios);
+    } else {
+        var term: termios = undefined;
+        _ = tcgetattr(STDIN_FILENO, &term);
+        term.c_lflag |= (ISIG | ICANON | ECHO);
+        _ = tcsetattr(STDIN_FILENO, 0, &term);
+    }
 
-    // Restore echoing and canonical mode
-    term.c_lflag |= (ECHO | ICANON);
-
-    _ = tcsetattr(STDIN_FILENO, 0, &term);
-
-    // Restore blocking I/O
-    _ = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, 0);
+    if (has_original_stdin_flags) {
+        _ = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, original_stdin_flags);
+    } else {
+        _ = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, 0);
+    }
 }
 
 const Stats = struct {
@@ -68,7 +85,7 @@ fn logSessionAppend(task_label: []const u8, duration_mins: u32) void {
 
     file.seekToEnd() catch return;
 
-    var buf: [128]u8 = undefined;
+    var buf: [512]u8 = undefined;
     const data = std.fmt.bufPrint(&buf, "Task: {s}, Duration: {d}m\n", .{ task_label, duration_mins }) catch return;
     _ = file.writeAll(data) catch {};
 }
@@ -118,7 +135,7 @@ pub fn main() !void {
     var time_buf: [16]u8 = undefined;
     var bar_buf: [64]u8 = undefined;
     var total_buf: [16]u8 = undefined;
-    var task_name_buf: [256]u8 = undefined;
+    var task_name_buf: [512]u8 = undefined;
 
     // Set terminal to raw mode and non-blocking input
     enableRawMode() catch {};
@@ -274,9 +291,9 @@ pub fn main() !void {
                     }
                 },
                 'n' => {
-                    // Temporary disable raw mode to use standard input for naming
+                    // Temporarily restore canonical input for naming.
                     disableRawMode() catch {};
-                    try stdout.print("\n\x1b[1mEnter new task name: \x1b[0m", .{});
+                    try stdout.print("\x1b[?25h\n\x1b[1mEnter new task name: \x1b[0m", .{});
 
                     if (stdin.readUntilDelimiterOrEof(&task_name_buf, '\n') catch null) |name| {
                         const trimmed = std.mem.trim(u8, name, "\r\n");
@@ -295,7 +312,7 @@ pub fn main() !void {
                     std.fs.cwd().writeFile("history.log", "") catch {};
                     try stdout.print("\n\x1b[31m\x1b[1m ★ Stats and History Cleared ★ \x1b[0m\n", .{});
                 },
-                'q' => {
+                'q', 3 => {
                     saveStats(sessions_completed, total_focus_secs);
                     try stdout.print("\x1b[?25h\n\x1b[0mExiting...\n", .{});
                     return;
