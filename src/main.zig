@@ -18,7 +18,7 @@ var has_original_stdin_flags: bool = false;
 
 fn enableRawMode() !void {
     var term: termios = undefined;
-    _ = tcgetattr(STDIN_FILENO, &term);
+    if (tcgetattr(STDIN_FILENO, &term) != 0) return error.TermiosGetFailed;
 
     original_termios = term;
     has_original_termios = true;
@@ -26,14 +26,17 @@ fn enableRawMode() !void {
     // Disable signals, canonical input, and echo for interactive single-key input.
     term.c_lflag &= ~(ISIG | ICANON | ECHO);
 
-    _ = tcsetattr(STDIN_FILENO, 0, &term);
+    if (tcsetattr(STDIN_FILENO, 0, &term) != 0) return error.TermiosSetFailed;
 
     const flags = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_GETFL, 0);
+    if (flags < 0) return error.FcntlFailed;
     original_stdin_flags = @intCast(flags);
     has_original_stdin_flags = true;
 
     // Set STDIN to non-blocking for the read call
-    _ = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, original_stdin_flags | std.os.linux.O_NONBLOCK);
+    if (std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, original_stdin_flags | std.os.linux.O_NONBLOCK) < 0) {
+        return error.FcntlFailed;
+    }
 }
 
 fn disableRawMode() !void {
@@ -41,9 +44,10 @@ fn disableRawMode() !void {
         _ = tcsetattr(STDIN_FILENO, 0, &original_termios);
     } else {
         var term: termios = undefined;
-        _ = tcgetattr(STDIN_FILENO, &term);
-        term.c_lflag |= (ISIG | ICANON | ECHO);
-        _ = tcsetattr(STDIN_FILENO, 0, &term);
+        if (tcgetattr(STDIN_FILENO, &term) == 0) {
+            term.c_lflag |= (ISIG | ICANON | ECHO);
+            _ = tcsetattr(STDIN_FILENO, 0, &term);
+        }
     }
 
     if (has_original_stdin_flags) {
