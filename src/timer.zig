@@ -149,7 +149,7 @@ pub const TaskTimer = struct {
 
     pub fn formatProgressBar(self: TaskTimer, buf: []u8) ![]const u8 {
         const width = 20;
-        if (buf.len < 36) return error.BufferTooSmall;
+        if (buf.len < 37) return error.BufferTooSmall;
 
         if (self.duration_secs == 0) return error.InvalidDuration;
 
@@ -423,11 +423,11 @@ test "formatProgressBar accepts a buffer of its actual maximum size" {
     timer.state = .Running;
     timer.remaining_secs = 30;
 
-    var buf: [36]u8 = undefined;
+    var buf: [37]u8 = undefined;
     const bar = try timer.formatProgressBar(&buf);
     try std.testing.expect(bar.len <= buf.len);
     try std.testing.expect(std.mem.indexOf(u8, bar, "50%") != null);
 
-    var small: [35]u8 = undefined;
+    var small: [36]u8 = undefined;
     try std.testing.expectError(error.BufferTooSmall, timer.formatProgressBar(&small));
 }
