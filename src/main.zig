@@ -32,7 +32,7 @@ fn enableRawMode() !void {
     }
 
     const flags = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_GETFL, 0);
-    if (flags < 0) {
+    if (@as(isize, @bitCast(flags)) < 0) {
         _ = tcsetattr(STDIN_FILENO, 0, &original_termios);
         has_original_termios = false;
         return error.FcntlFailed;
@@ -41,7 +41,7 @@ fn enableRawMode() !void {
     has_original_stdin_flags = true;
 
     // Set STDIN to non-blocking for the read call
-    if (std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, original_stdin_flags | std.os.linux.O_NONBLOCK) < 0) {
+    if (@as(isize, @bitCast(std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, original_stdin_flags | std.os.linux.O_NONBLOCK))) < 0) {
         _ = tcsetattr(STDIN_FILENO, 0, &original_termios);
         _ = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, original_stdin_flags);
         has_original_termios = false;
