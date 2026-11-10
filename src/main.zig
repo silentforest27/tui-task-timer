@@ -1,5 +1,5 @@
 const std = @import("std");
-const Timer = @import("timer");
+const Timer = @import("timer.zig");
 
 // Termios imports for raw mode on Unix
 const termios = std.os.linux.termios;
