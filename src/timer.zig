@@ -122,11 +122,16 @@ pub const TaskTimer = struct {
     }
 
     pub fn tick(self: *TaskTimer) bool {
-        if ((self.state == .Running or self.state == .Break) and self.remaining_secs > 0) {
+        if (self.state == .Running or self.state == .Break) {
+            if (self.remaining_secs == 0) {
+                self.state = .Idle;
+                return true;
+            }
+
             self.remaining_secs -= 1;
             if (self.remaining_secs == 0) {
                 self.state = .Idle;
-                return true; // Timer finished
+                return true;
             }
         }
         return false;
@@ -430,4 +435,22 @@ test "formatProgressBar accepts a buffer of its actual maximum size" {
 
     var small: [35]u8 = undefined;
     try std.testing.expectError(error.BufferTooSmall, timer.formatProgressBar(&small));
+}
+
+test "tick finishes a zero-duration focus timer" {
+    var timer = TaskTimer.init(0);
+    timer.start();
+
+    try std.testing.expect(timer.tick());
+    try std.testing.expectEqual(TimerState.Idle, timer.state);
+    try std.testing.expectEqual(@as(u32, 0), timer.remaining_secs);
+}
+
+test "tick finishes a zero-duration break" {
+    var timer = TaskTimer.init(1);
+    timer.startBreak(0);
+
+    try std.testing.expect(timer.tick());
+    try std.testing.expectEqual(TimerState.Idle, timer.state);
+    try std.testing.expectEqual(@as(u32, 0), timer.remaining_secs);
 }
