@@ -26,15 +26,26 @@ fn enableRawMode() !void {
     // Disable signals, canonical input, and echo for interactive single-key input.
     term.c_lflag &= ~(ISIG | ICANON | ECHO);
 
-    if (tcsetattr(STDIN_FILENO, 0, &term) != 0) return error.TermiosSetFailed;
+    if (tcsetattr(STDIN_FILENO, 0, &term) != 0) {
+        has_original_termios = false;
+        return error.TermiosSetFailed;
+    }
 
     const flags = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_GETFL, 0);
-    if (flags < 0) return error.FcntlFailed;
+    if (flags < 0) {
+        _ = tcsetattr(STDIN_FILENO, 0, &original_termios);
+        has_original_termios = false;
+        return error.FcntlFailed;
+    }
     original_stdin_flags = @intCast(flags);
     has_original_stdin_flags = true;
 
     // Set STDIN to non-blocking for the read call
     if (std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, original_stdin_flags | std.os.linux.O_NONBLOCK) < 0) {
+        _ = tcsetattr(STDIN_FILENO, 0, &original_termios);
+        _ = std.os.linux.fcntl(STDIN_FILENO, std.os.linux.F_SETFL, original_stdin_flags);
+        has_original_termios = false;
+        has_original_stdin_flags = false;
         return error.FcntlFailed;
     }
 }
@@ -140,7 +151,10 @@ pub fn main() !void {
     var task_name_buf: [1024]u8 = undefined;
 
     // Set terminal to raw mode and non-blocking input
-    enableRawMode() catch {};
+    enableRawMode() catch |err| {
+        try stdout.print("Failed to enable raw terminal mode: {}\n", .{err});
+        return;
+    };
     defer stdout.print("\x1b[?25h", .{}) catch {};
     defer disableRawMode() catch {};
 
@@ -151,7 +165,7 @@ pub fn main() !void {
     try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  \x1b[1mTUI Task Timer (Zig)\x1b[0m                                  \x1b[1m\x1b[36m║\x1b[0m\n", .{});
     try stdout.print("\x1b[1m\x1b[36m╠══════════════════════════════════════════════════════╣\x1b[0m\n", .{});
     try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Task: \x1b[33m{s}\x1b[0m                                      \x1b[1m\x1b[36m║\x1b[0m\n", .{task_label});
-    try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Duration: {d} mins | Break: {d} mins                \x1b[1m\x1b[36m║\x1b[0m\n", .{duration_mins, break_mins});
+    try stdout.print("\x1b[1m\x1b[36m║\x1b[0m  Duration: {d} mins | Break: {d} mins                \x1b[1m\x1b[36m║\x1b[0m\n", .{ duration_mins, break_mins });
     try stdout.print("\x1b[1m\x1b[36m╚══════════════════════════════════════════════════════╝\x1b[0m\n", .{});
     try stdout.print("\nControls: [s]tart, [p]ause, [r]eset, [b]reak, [+/-] adj focus, [U/I] adj break, [n]ame, [C]lear stats, [q]uit\n", .{});
     try stdout.print("\x1b[2m-----------------------------------------------------\x1b[0m\n", .{});
@@ -190,13 +204,13 @@ pub fn main() !void {
             type_text,
             status_text,
             formatted_time,
-            progress_bar
+            progress_bar,
         });
 
         // Print stats on the next line, then move cursor back up
         try stdout.print("\n\x1b[K\x1b[2mTotal sessions: {d} | Total focus: {s}\x1b[0m", .{
             sessions_completed,
-            total_formatted
+            total_formatted,
         });
         try stdout.print("\x1b[1A", .{});
 
