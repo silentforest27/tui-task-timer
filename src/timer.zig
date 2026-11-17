@@ -454,3 +454,45 @@ test "tick finishes a zero-duration break" {
     try std.testing.expectEqual(TimerState.Idle, timer.state);
     try std.testing.expectEqual(@as(u32, 0), timer.remaining_secs);
 }
+
+test "idle timer tick does not report completion" {
+    var timer = TaskTimer.init(1);
+    try std.testing.expect(!timer.tick());
+    try std.testing.expectEqual(TimerState.Idle, timer.state);
+    try std.testing.expectEqual(@as(u32, 60), timer.remaining_secs);
+}
+
+test "zero-duration focus timer can be started" {
+    var timer = TaskTimer.init(0);
+    timer.start();
+    try std.testing.expectEqual(TimerState.Running, timer.state);
+    try std.testing.expectEqual(@as(u32, 0), timer.remaining_secs);
+    try std.testing.expect(timer.tick());
+}
+
+test "formatSeconds formats zero seconds" {
+    var buf: [8]u8 = undefined;
+    const formatted = try TaskTimer.formatSeconds(&buf, 0);
+    try std.testing.expectEqualStrings("00:00", formatted);
+}
+
+test "formatProgressBar handles a completed session" {
+    var timer = TaskTimer.init(1);
+    timer.state = .Idle;
+    timer.remaining_secs = 0;
+    timer.duration_secs = 60;
+    var buf: [64]u8 = undefined;
+    const bar = try timer.formatProgressBar(&buf);
+    try std.testing.expect(std.mem.indexOf(u8, bar, "100%") != null);
+}
+
+test "updating focus duration while running preserves the current session" {
+    var timer = TaskTimer.init(2);
+    timer.state = .Running;
+    timer.duration_secs = 120;
+    timer.remaining_secs = 90;
+    timer.updateFocusDuration(5);
+    try std.testing.expectEqual(@as(u32, 5 * 60), timer.focus_duration_secs);
+    try std.testing.expectEqual(@as(u32, 120), timer.duration_secs);
+    try std.testing.expectEqual(@as(u32, 90), timer.remaining_secs);
+}
