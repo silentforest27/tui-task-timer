@@ -116,6 +116,46 @@ pub fn main() !void {
     );
     defer std.process.argsFree(std.heap.page_allocator, args);
 
+    const prog_name = if (args.len > 0) args[0] else "tui-task-timer";
+
+    if (args.len > 1) {
+        if (std.mem.eql(u8, args[1], "--help") or std.mem.eql(u8, args[1], "-h")) {
+            try stdout.print(
+                "TUI Task Timer\n\n" ++
+                    "Usage:\n" ++
+                    "  {s} [--help|-h|--stats]\n" ++
+                    "  {s} [focus_minutes] [task_label] [break_minutes]\n\n" ++
+                    "Options:\n" ++
+                    "  -h, --help   Show this help and exit\n" ++
+                    "  --stats      Print saved stats and session history, then exit\n\n" ++
+                    "Controls:\n" ++
+                    "  s start/resume  p pause  r reset  b break  +/- adjust focus\n" ++
+                    "  U/I adjust break  n rename task  C clear stats/history  q quit\n",
+                .{ prog_name, prog_name },
+            );
+            return;
+        }
+
+        if (std.mem.eql(u8, args[1], "--stats")) {
+            const loaded = loadStats();
+            var total_buf: [16]u8 = undefined;
+            const total_formatted = Timer.formatSeconds(&total_buf, loaded.focus_secs) catch "00:00";
+            try stdout.print("Sessions: {d}\nTotal focus: {s}\n", .{ loaded.sessions, total_formatted });
+
+            if (std.fs.cwd().openFile("history.log", .{ .mode = .read_only })) |file| {
+                defer file.close();
+                var buf: [4096]u8 = undefined;
+                while (true) {
+                    const bytes_read = file.read(&buf) catch break;
+                    if (bytes_read == 0) break;
+                    try stdout.writeAll(buf[0..bytes_read]);
+                }
+            } else |_| {}
+
+            return;
+        }
+    }
+
     if (args.len > 1) {
         if (std.fmt.parseInt(u32, args[1], 10)) |val| {
             if (val > 0) {

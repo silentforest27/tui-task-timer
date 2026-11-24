@@ -35,6 +35,16 @@ Specify focus duration, task label, and break duration (e.g., 10m focus, 2m brea
 ./main 10 "Code Review" 2
 ```
 
+Show command help:
+```bash
+./main --help
+```
+
+Print saved stats and session history without starting the TUI:
+```bash
+./main --stats
+```
+
 ## Controls
 - `s`: start/resume
 - `p`: pause
