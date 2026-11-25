@@ -109,7 +109,13 @@ pub fn main() !void {
 
     var duration_mins: u32 = 25;
     var break_mins: u32 = 5;
-    var task_label: []const u8 = "Focus Session";
+
+    var task_label_buf: [1024]u8 = undefined;
+    var task_label_len: usize = 0;
+    const default_task_label = "Focus Session";
+    @memcpy(task_label_buf[0..default_task_label.len], default_task_label);
+    task_label_len = default_task_label.len;
+    var task_label: []const u8 = task_label_buf[0..task_label_len];
 
     const args = try std.process.argsAlloc(
         std.heap.page_allocator,
@@ -169,7 +175,11 @@ pub fn main() !void {
     }
 
     if (args.len > 2) {
-        task_label = args[2];
+        const arg_label = args[2];
+        const n = @min(arg_label.len, task_label_buf.len);
+        @memcpy(task_label_buf[0..n], arg_label[0..n]);
+        task_label_len = n;
+        task_label = task_label_buf[0..task_label_len];
     }
 
     if (args.len > 3) {
@@ -358,7 +368,10 @@ pub fn main() !void {
                     if (stdin.readUntilDelimiterOrEof(&task_name_buf, '\n') catch null) |name| {
                         const trimmed = std.mem.trim(u8, name, "\r\n");
                         if (trimmed.len > 0) {
-                            task_label = trimmed;
+                            const n = @min(trimmed.len, task_label_buf.len);
+                            @memcpy(task_label_buf[0..n], trimmed[0..n]);
+                            task_label_len = n;
+                            task_label = task_label_buf[0..task_label_len];
                         }
                     }
 
