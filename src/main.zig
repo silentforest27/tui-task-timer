@@ -343,7 +343,7 @@ pub fn main() !void {
                     }
                 },
                 'U' => {
-                    if (timer.state == .Idle or timer.state == .Paused) {
+                    if (timer.state == .Idle or timer.state == .Paused or timer.state == .Break) {
                         if (break_mins < std.math.maxInt(u32)) {
                             break_mins += 1;
                             timer.updateBreakDuration(break_mins);
@@ -352,7 +352,7 @@ pub fn main() !void {
                     }
                 },
                 'I' => {
-                    if (timer.state == .Idle or timer.state == .Paused) {
+                    if (timer.state == .Idle or timer.state == .Paused or timer.state == .Break) {
                         if (break_mins > 1) {
                             break_mins -= 1;
                             timer.updateBreakDuration(break_mins);
