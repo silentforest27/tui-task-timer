@@ -98,7 +98,7 @@ fn logSessionAppend(task_label: []const u8, duration_mins: u32) void {
 
     file.seekToEnd() catch return;
 
-    var buf: [512]u8 = undefined;
+    var buf: [2048]u8 = undefined;
     const data = std.fmt.bufPrint(&buf, "Task: {s}, Duration: {d}m\n", .{ task_label, duration_mins }) catch return;
     _ = file.writeAll(data) catch {};
 }
